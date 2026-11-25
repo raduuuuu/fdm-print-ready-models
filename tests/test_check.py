@@ -15,7 +15,7 @@ import layers
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILL = os.path.join(REPO, "skills", "fdm-print-ready-models", "SKILL.md")
 CHECK_PY = os.path.join(REPO, "skills", "fdm-print-ready-models", "scripts", "check.py")
-NOT_RUN = "checks not run: post, slope, overhang angle, corner, support, slicer"
+NOT_RUN = "checks not run: slope, overhang angle, corner, slicer"
 
 
 def box(x0, x1, y0, y1, z0, z1):
@@ -76,7 +76,7 @@ def test_good_part_passes_and_says_what_did_not_run(tmp_path, capsys):
     p = stl(tmp_path, GOOD)
     code, out, _ = run([p], capsys)
     assert code == 0
-    assert f"VERDICT: PASS (layer check only; {NOT_RUN})" in out
+    assert f"VERDICT: PASS (layer, post and support checks only; {NOT_RUN})" in out
 
 
 def test_report_contents(tmp_path, capsys):
@@ -208,6 +208,9 @@ PROSE = {      # how the design rules in SKILL.md word each limit that the check
     "max_bridge": r"A bridge over ([\d.]+) mm always fails",
     "ceiling_warn": r"a ceiling longer than ([\d.]+) mm may sag",
     "thin_wall_head": r"in a wall up to ([\d.]+) mm thick",
+    "column_ratio": r"at least 2\.4 mm, at most ([\d.]+) times as tall as wide",
+    "support_min_width": r"any flat underside about ([\d.]+) mm or wider gets a support",
+    "tool_gap": r"a gap of at least ([\d.]+) mm leading to the support",
 }
 
 

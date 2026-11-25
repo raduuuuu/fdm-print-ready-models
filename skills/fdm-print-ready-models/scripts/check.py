@@ -61,14 +61,24 @@ def _run_layers(solid):
     return layers.run(solid)
 
 
+def _run_posts(solid):
+    import layers
+    return layers.run_posts(solid)
+
+
+def _run_supports(solid):
+    import layers
+    return layers.run_supports(solid)
+
+
 CHECKS = [
     {"name": "layer", "run": _run_layers,
      "text": "Thin features, floating regions, flat ledges and bridges, layer by layer"},
-    {"name": "post", "run": None, "text": "Overhangs carried only by thin posts; slender columns"},
+    {"name": "post", "run": _run_posts, "text": "Overhangs carried only by thin posts; slender columns"},
     {"name": "slope", "run": None, "text": "Top surfaces between 3 and 35 degrees"},
     {"name": "overhang angle", "run": None, "text": "Undersides flatter than 45 degrees"},
     {"name": "corner", "run": None, "text": "Sharp inner corners (report only)"},
-    {"name": "support", "run": None, "text": "Where supports would go, and whether they can be removed"},
+    {"name": "support", "run": _run_supports, "text": "Where supports would go, and whether they can be removed"},
     {"name": "slicer", "run": None, "text": "A real slicer run: its alerts, bridges and overhang walls"},
 ]
 
@@ -195,7 +205,8 @@ def inspect_part(path):
         quals.insert(0, f"with {counts['warn']} warning{'s' if counts['warn'] != 1 else ''}")
     ran = [c["name"] for c in report["checks"] if c["status"] in ("pass", "warn", "fail")]
     if verdict == "PASS" and len(ran) < len(CHECKS):
-        quals.insert(0, f"{' and '.join(ran)} check only" if ran else "no check ran")
+        names = ran[0] if len(ran) == 1 else ", ".join(ran[:-1]) + " and " + ran[-1] if ran else ""
+        quals.insert(0, f"{names} check{'s' if len(ran) > 1 else ''} only" if ran else "no check ran")
     report.update({"verdict": verdict, "qualifiers": quals, "counts": counts})
     return report
 
@@ -204,10 +215,17 @@ def _describe(f):
     import limits as L
     text = L.KINDS[f["kind"]]["text"]
     what = {"span_mm": "span {v} mm", "reach_mm": "sticks out {v} mm", "area_mm2": "area {v} mm2",
-            "size_mm": "largest side {v} mm", "z_min_mm": "lowest point at z = {v} mm"}[f["what"]]
+            "size_mm": "largest side {v} mm", "z_min_mm": "lowest point at z = {v} mm",
+            "ratio": "{v} times as tall as wide"}[f["what"]]
     line = f"{text}: {what.format(v=f['value'])}"
-    if f.get("width"):
+    if f.get("width") and f["kind"] in ("bridge", "ceiling_bridge"):
         line += f", {f['width']} mm wide"
+    elif f.get("width") and f["kind"].startswith("thin_post"):
+        line += f", narrowest post {f['width']} mm"
+    elif f.get("width") and f["kind"] == "slender_column":
+        line += f", {f['width']} mm wide"
+    elif f.get("width") and f["kind"].startswith("support_"):
+        line += f", {f['width']} mm above the surface it would stand on"
     if f.get("limit") is not None and f["what"] in ("span_mm", "reach_mm"):
         line += f" (limit {f['limit']} mm)"
     if "x" in f:

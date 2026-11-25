@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- Post check: overhangs carried only by thin posts, and columns too tall for their width.
+- Support prediction: where supports would go, and a failure where one could not be pulled out.
+- The layer check now fails a bridge deck that sticks out past its supports.
+
 ## 0.1.0 (2026-11-25)
 
 First public version.

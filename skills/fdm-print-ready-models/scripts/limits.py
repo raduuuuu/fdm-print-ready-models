@@ -34,7 +34,28 @@ LIMITS = {
                             "A bridging strip at most this wide is a thin wall head: it prints as "
                             "wall lines only, which bridge well (22 mm in a 1.6 mm wall and 14 mm "
                             "in a 2.4 mm wall printed cleanly). Wider strips are ceilings."),
+    "column_ratio": Limit(12.0, "x", "estimate",
+                          "A free-standing column may be at most this many times as tall as wide."),
+    "support_min_width": Limit(2.0, "mm", "estimate",
+                               "A flat underside at least this wide gets a support when supports "
+                               "are switched on."),
+    "tool_gap": Limit(8.0, "mm", "estimate",
+                      "Narrowest gap a support can be pulled out through with pliers or a fingertip."),
 }
+
+# Post check: what counts as a thin post, and when an overhang resting on thin posts is serious.
+POST_THIN_WIDTH = 1.2     # mm; a piece narrower than this everywhere is a thin post (2-3 lines)
+POST_THIN_AREA = 12.0     # mm2; or one smaller than this in section
+COLUMN_MIN_HEIGHT = 15.0  # mm; shorter columns are not judged for slenderness
+POST_OVERHANG_AREA = 4.0  # mm2; smaller overhang islands on thin posts are ignored
+POST_FAIL_HEIGHT = 8.0    # mm; an overhang on thin posts fails when the posts are taller than this
+POST_FAIL_AREA = 20.0     # mm2; and the overhang is larger than this. Otherwise it warns.
+POST_WIDE_AREA = 200.0    # mm2; pieces this large are never thin, so their width is not measured
+
+# Support prediction.
+SUPPORT_GROW = 0.35       # mm the layer below is grown by before looking for unsupported area
+SUPPORT_MIN_AREA = 1.0    # mm2; smaller patches are ignored
+SUPPORT_BASE_SHARE = 0.3  # a lower layer is the patch's base when it covers this share of it
 
 # Internal tolerances of the layer scan. None of these is a design rule.
 WIDTH_TOL = 0.1           # mm added to thin_wall_head, so a wall modelled at exactly the limit counts
@@ -79,6 +100,20 @@ KINDS = {
                         "text": "Wide ceiling bridge that may sag"},
     "bridge":          {"severity": "info", "waivable": False, "limit": "max_bridge",
                         "text": "Bridge within limits"},
+    "overhang_past_supports": {"severity": "fail", "waivable": False, "limit": "max_ledge",
+                        "text": "Bridge whose deck sticks out past its supports"},
+    "thin_post_overhang": {"severity": "fail", "waivable": False, "limit": None,
+                        "text": "Overhang carried only by thin posts"},
+    "thin_post_overhang_small": {"severity": "warn", "waivable": True, "limit": None,
+                        "text": "Small overhang carried only by thin posts"},
+    "slender_column":  {"severity": "fail", "waivable": False, "limit": "column_ratio",
+                        "text": "Free-standing column too tall for its width"},
+    "support_enclosed": {"severity": "fail", "waivable": True, "limit": "tool_gap",
+                        "text": "Support would stand on the model where it cannot be pulled out"},
+    "support_on_model": {"severity": "warn", "waivable": True, "limit": "support_min_width",
+                        "text": "Support would stand on the model"},
+    "support_on_plate": {"severity": "info", "waivable": False, "limit": "support_min_width",
+                        "text": "Support would stand on the build plate"},
     "off_bed":         {"severity": "warn", "waivable": True, "limit": None,
                         "text": "Lowest point of the part is not at z = 0"},
     "small_part":      {"severity": "warn", "waivable": True, "limit": None,

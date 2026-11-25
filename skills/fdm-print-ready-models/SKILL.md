@@ -66,7 +66,7 @@ A sharp inner (concave) corner concentrates stress and is where layers split and
 Design for no supports, then check what happens with tree supports on (30 degree threshold).
 - Tree supports ignore "don't support bridges": any flat underside about 2 mm or wider gets a support.
 - A support that starts on the model inside a slot, cage or closed room cannot be pulled out. In those places nothing may be flat: use full 45 degree vaults, make low gaps solid, let braces meet mid-span.
-- Supports are fine where fingers or pliers reach and where they stand on the build plate.
+- Supports are fine where they stand on the build plate, and where fingers or pliers reach them: the check assumes a gap of at least 8 mm leading to the support.
 
 ### Consistency
 - Place a repeated detail (a clock face, a sign) by rotating it only. Mirroring a copy flips its content. If a whole part is mirrored, build the detail mirrored first.
@@ -107,21 +107,20 @@ Several parts can be given at once. Each gets a text report and a `<part>.report
 
 ### What is automated in this version
 
-The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs **check 1** only. Do checks 2 to 6 by hand, as described, and say in your report that they were manual.
+The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs **checks 1, 2 and 6**. Do checks 3, 4 and 5 by hand, as described, and say in your report that they were manual. The numbers each check uses are in the limits table at the end.
 
-1. **Layer check (automated).** Slices at 0.2 mm. Fails features narrower than 0.8 mm, outlines that start in mid-air, flat ledges beyond 2 mm, and bridges over 30 mm. Warns on ceilings longer than 12 mm.
-2. **Post check (manual for now).** Look for overhangs or bridges carried only by thin posts, and for posts that are too tall for their width.
+1. **Layer check (automated).** Slices the part layer by layer. Fails features narrower than the minimum width, outlines that start in mid-air, flat ledges beyond the ledge limit, bridges over the hard limit, and bridge decks that stick out past their supports by more than the ledge limit. Warns on long ceilings.
+2. **Post check (automated).** Fails an overhang or bridge carried only by thin posts when the posts are tall and the overhang is large, and a free-standing column that is too tall for its width. Smaller overhangs on thin posts warn.
 3. **Slope and overhang check (manual for now).** Upward-facing surfaces between 3 and 35 degrees: none apart from narrow fillets and listed exceptions. Downward-facing surfaces: none flatter than 40 degrees apart from bridges and ledges within their limits.
 4. **Inner corner check (manual for now).** Go through the concave edges. Every horizontal one has a fillet (or a 45 degree chamfer where it faces down). List the vertical ones left sharp and why.
 5. **Real slicer (manual for now).** Slice with the PrusaSlicer or OrcaSlicer command line: 0.4 mm nozzle, 0.2 mm layers, no supports, 3 walls. Measure the longest bridge over air and how far any overhang wall is out in the air (2 mm at most), and read the slicer's own alerts. The goal is no alert. With 2 walls some alerts come back (measured).
-6. **Support prediction (manual for now).** Per layer, the area not carried by the layer below, patches 2 mm or wider, and whether each stands on the plate or on the model. Patches on the model in places a hand cannot reach are designed away.
+6. **Support prediction (automated).** Lists every flat underside wide enough to get a support when supports are switched on. On the build plate: information. On the model: a warning. On the model where no gap wide enough for a tool leads to it: fails, because the support cannot be pulled out. It looks sideways only, so a room that is open from above still counts as closed. Patches in places a hand cannot reach are designed away.
 
 Slicer command lines print alerts without a location. To find the cause, slice the part cut off at increasing heights to find where the alert first appears, or build the part with one feature at a time.
 
 PrusaSlicer bridges floating regions silently and OrcaSlicer reports them, so do not rely on one slicer for that. A clean slicer run is not proof either: the plates with the 19 degree roof above sliced successfully, and the problem only showed on the print.
 
-### Known gaps in the automated check
-- An overhang held on two sides is treated as a bridge even when part of it sticks out past those supports (a deck overhanging its two walls). The slicer check catches this; the layer check does not yet.
+### Known gaps in the automated checks
 - The command supports the tested setup only: 0.4 mm nozzle, 0.2 mm layers.
 
 ## 5. Slicer projects and delivery
@@ -166,6 +165,9 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `max_bridge` | 30 mm | estimate | Longest bridge over air. Longer fails. |
 | `ceiling_warn` | 12 mm | estimate | A bridge wider than a thin wall head warns when longer than this. |
 | `thin_wall_head` | 3 mm | estimate | A bridging strip at most this wide is a thin wall head: it prints as wall lines only, which bridge well (22 mm in a 1.6 mm wall and 14 mm in a 2.4 mm wall printed cleanly). Wider strips are ceilings. |
+| `column_ratio` | 12 x | estimate | A free-standing column may be at most this many times as tall as wide. |
+| `support_min_width` | 2 mm | estimate | A flat underside at least this wide gets a support when supports are switched on. |
+| `tool_gap` | 8 mm | estimate | Narrowest gap a support can be pulled out through with pliers or a fingertip. |
 
 ### What the checks report
 
@@ -177,6 +179,13 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `bridge_too_long` | fail | no | Bridge longer than the hard limit |
 | `ceiling_bridge` | warn | yes | Wide ceiling bridge that may sag |
 | `bridge` | info | no | Bridge within limits |
+| `overhang_past_supports` | fail | no | Bridge whose deck sticks out past its supports |
+| `thin_post_overhang` | fail | no | Overhang carried only by thin posts |
+| `thin_post_overhang_small` | warn | yes | Small overhang carried only by thin posts |
+| `slender_column` | fail | no | Free-standing column too tall for its width |
+| `support_enclosed` | fail | yes | Support would stand on the model where it cannot be pulled out |
+| `support_on_model` | warn | yes | Support would stand on the model |
+| `support_on_plate` | info | no | Support would stand on the build plate |
 | `off_bed` | warn | yes | Lowest point of the part is not at z = 0 |
 | `small_part` | warn | yes | Part is very small: check the export units |
 
@@ -185,11 +194,11 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | Check | Runs in this version | What it looks at |
 |---|---|---|
 | layer | yes | Thin features, floating regions, flat ledges and bridges, layer by layer |
-| post | no, manual for now | Overhangs carried only by thin posts; slender columns |
+| post | yes | Overhangs carried only by thin posts; slender columns |
 | slope | no, manual for now | Top surfaces between 3 and 35 degrees |
 | overhang angle | no, manual for now | Undersides flatter than 45 degrees |
 | corner | no, manual for now | Sharp inner corners (report only) |
-| support | no, manual for now | Where supports would go, and whether they can be removed |
+| support | yes | Where supports would go, and whether they can be removed |
 | slicer | no, manual for now | A real slicer run: its alerts, bridges and overhang walls |
 
 <!-- end of generated tables -->

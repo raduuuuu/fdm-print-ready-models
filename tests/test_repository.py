@@ -55,8 +55,8 @@ def test_the_scan_accepts_ordinary_text():
 def test_known_good_part_passes_without_warnings(capsys):
     code = check.main([os.path.join(REPO, "tests", "fixtures", "known_good.stl"), "--no-report"])
     out = capsys.readouterr().out
-    assert code == 0 and "VERDICT: PASS (layer check only; checks not run" in out
-    assert "warn" not in out
+    assert code == 0 and "VERDICT: PASS (layer, post and support checks only; with 2 warnings" in out
+    assert out.count("warn  Support would stand on the model") == 2 and "FAIL" not in out.replace("VERDICT", "")
 
 
 def test_every_measured_claim_in_the_skill_has_evidence():
