@@ -1,2 +1,2 @@
--r skills/fdm-print-ready-models/scripts/requirements.txt
+-r skills/fdm-print-ready-models/scripts/requirements-slicer.txt
 pytest==9.2.0

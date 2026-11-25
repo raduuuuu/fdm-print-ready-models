@@ -36,4 +36,4 @@ The corner check is a report, not a verdict. On this part it lists four horizont
 
 ## Not shown
 
-The part was generated and checked, not printed. The slicer check is not automated yet, so the report says "checks not run: slicer".
+The part was generated and checked, not printed. The saved report includes a slicer run.

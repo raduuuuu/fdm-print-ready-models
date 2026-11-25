@@ -19,9 +19,9 @@ part.stl
 VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; with 2 warnings; checks not run: slicer)
 ```
 
-## Status: version 0.2.0
+## Status: version 0.3.0
 
-The skill describes six checks. This version automates all but one:
+All six checks the skill describes are automated:
 
 | Check | What it finds |
 |---|---|
@@ -31,8 +31,9 @@ The skill describes six checks. This version automates all but one:
 | Overhang angle | Sloped undersides that are too flat |
 | Corner | Sharp inner corners. A report for a person to read; it never fails a part |
 | Support | Where supports would go if someone switches them on, and where one could not be pulled out |
+| Slicer | A real slicer run: its longest bridging line over air, overhang walls printed in the air, and PrusaSlicer's own alerts |
 
-The real slicer run (PrusaSlicer and OrcaSlicer) is still done by hand and is planned for 0.3. Every verdict line says so.
+The slicer check runs when PrusaSlicer is installed. OrcaSlicer works too, given three preset files exported from it. Without a slicer the verdict says "geometry only".
 
 Findings that are judgment calls, such as a ramp that is meant to be shallow, can be recorded as intended in `<part>.exceptions.json`; the skill explains the format. Physical defects cannot be waived.
 
@@ -66,16 +67,16 @@ The part must be an STL in print orientation: flat side on the bed, z up, sizes 
 With [uv](https://docs.astral.sh/uv/), from the repository root:
 
 ```
-uv run --no-project --python 3.12 --with-requirements skills/fdm-print-ready-models/scripts/requirements.txt skills/fdm-print-ready-models/scripts/check.py part.stl
+uv run --no-project --python 3.12 --with-requirements skills/fdm-print-ready-models/scripts/requirements-slicer.txt skills/fdm-print-ready-models/scripts/check.py part.stl
 ```
 
-`uv` builds a private environment with the pinned packages (numpy, trimesh, manifold3d) the first time. Nothing is installed into your own Python.
+`uv` builds a private environment with the pinned packages (numpy, trimesh, manifold3d, and shapely for the slicer check) the first time. Nothing is installed into your own Python.
 
 Without uv:
 
 ```
 python3 -m venv .venv
-.venv/bin/pip install -r skills/fdm-print-ready-models/scripts/requirements.txt
+.venv/bin/pip install -r skills/fdm-print-ready-models/scripts/requirements-slicer.txt
 .venv/bin/python skills/fdm-print-ready-models/scripts/check.py part.stl
 ```
 
@@ -99,7 +100,8 @@ Each part also gets `<part>.report.json` next to the STL: the position of every 
 | `Part is very small: check the export units` | Same cause, usually an inch export. Ignore it if the part really is under 5 mm |
 | Many failures on a part that looks fine | The part is probably not in print orientation. Export it standing on the bed the way it will print |
 | `Lowest point of the part is not at z = 0` | The part was exported at its assembled height. The checks still run; the warning is a reminder |
-| `checks not run: slicer` | Expected in 0.2.0. A pass covers the six automated checks, not a slicer run |
+| `geometry only: the slicer check did not run` | No slicer was found, or OrcaSlicer was found without preset files. Install PrusaSlicer, or pass `--orca-presets` |
+| `the slicer exited with code …`, `could not confirm the slice ran` | The slicer itself failed. The run is INCOMPLETE; the message carries the slicer's last lines |
 | `problem with the exceptions file` | The message says which entry and why. Fix the file; until then the run is INCOMPLETE |
 
 If a result looks wrong, open an issue and attach the `report.json`.

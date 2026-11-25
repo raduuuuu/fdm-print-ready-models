@@ -14,10 +14,13 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: pip install -r requirements-dev.txt uv
+      - name: Install PrusaSlicer (for the slicer check's live tests)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq prusa-slicer > /dev/null && prusa-slicer --help | head -1
       - name: Tests (checks, runner, generated tables, repository scan)
         run: pytest -q
-      - name: The documented command on the known-good part
+      - name: The documented command, with the slicer check, on the sample part and the example
         run: >
           uv run --no-project --python 3.12
-          --with-requirements skills/fdm-print-ready-models/scripts/requirements.txt
-          skills/fdm-print-ready-models/scripts/check.py --no-report tests/fixtures/known_good.stl examples/shelter/shelter.stl
+          --with-requirements skills/fdm-print-ready-models/scripts/requirements-slicer.txt
+          skills/fdm-print-ready-models/scripts/check.py --no-report --slicer prusa
+          tests/fixtures/known_good.stl examples/shelter/shelter.stl

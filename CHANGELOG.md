@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+All six checks are automated.
+
+- Slicer check: runs PrusaSlicer or OrcaSlicer on the part, fails a bridging line over air longer than 30 mm or an overhang wall more than 2 mm out in the air, and reports PrusaSlicer's own alerts as warnings.
+- Without a slicer the verdict says "geometry only".
+- The check command is now given with `requirements-slicer.txt`, which adds the package the slicer check needs.
+
 ## 0.2.0 (2026-11-25)
 
 Six of the seven checks are now automated. Only the slicer run is still done by hand.

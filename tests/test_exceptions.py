@@ -150,4 +150,5 @@ def test_every_kind_that_fails_and_cannot_be_waived_is_a_physical_defect():
     import limits
     unwaivable = {k for k, v in limits.KINDS.items() if v["severity"] == "fail" and not v["waivable"]}
     assert unwaivable == {"thin_feature", "floating_region", "ledge", "bridge_too_long",
-                          "overhang_past_supports", "thin_post_overhang", "slender_column"}
+                          "overhang_past_supports", "thin_post_overhang", "slender_column",
+                          "slicer_bridge_too_long", "slicer_wall_in_air"}

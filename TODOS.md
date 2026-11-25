@@ -3,7 +3,7 @@
 Deferred on purpose. Each entry says why it waits.
 
 ## Planned releases
-- **0.3**: a real slicer run with PrusaSlicer and OrcaSlicer.
+- Nothing scheduled. The items below are candidates.
 
 ## Later
 
@@ -35,6 +35,17 @@ Deferred on purpose. Each entry says why it waits.
 - **What:** narrow the corner report to the corners that matter.
 - **Why:** on real parts that printed cleanly it lists about two thousand sharp horizontal corners, too many to act on.
 - **Cost:** needs a decision on which corners the fillet rule really means.
+- **Depends on:** nothing.
+
+### Read OrcaSlicer's alerts
+- **What:** report OrcaSlicer's own warnings, as is done for PrusaSlicer.
+- **Why:** OrcaSlicer reports floating regions, which PrusaSlicer bridges silently.
+- **Cost:** its command line does not print them in a stable form; they would have to be read from its log.
+- **Depends on:** nothing.
+
+### Flat ledges in the slicer measurement
+- **What:** tell a wall wrapped around a flat ledge from a real bridge.
+- **Why:** the slicer check reads such a wall as a bridge held at both ends. The layer check covers the case today.
 - **Depends on:** nothing.
 
 ### Windows

@@ -86,10 +86,10 @@ Run them on the exported STL, in print orientation. All of them must pass on eve
 One command runs every check that is automated and gives one verdict per part:
 
 ```
-uv run --no-project --python 3.12 --with-requirements "${CLAUDE_SKILL_DIR}/scripts/requirements.txt" "${CLAUDE_SKILL_DIR}/scripts/check.py" part.stl
+uv run --no-project --python 3.12 --with-requirements "${CLAUDE_SKILL_DIR}/scripts/requirements-slicer.txt" "${CLAUDE_SKILL_DIR}/scripts/check.py" part.stl
 ```
 
-`${CLAUDE_SKILL_DIR}` is the folder this file is in. `uv` builds a private environment with the pinned packages the first time; nothing is installed into the user's own Python. Without `uv`, create a virtual environment, `pip install -r` the same `requirements.txt` and run `check.py` with that Python. If packages are missing the command prints these instructions and stops.
+`${CLAUDE_SKILL_DIR}` is the folder this file is in. `uv` builds a private environment with the pinned packages the first time; nothing is installed into the user's own Python. Without `uv`, create a virtual environment, `pip install -r` the same file and run `check.py` with that Python. If packages are missing the command prints these instructions and stops.
 
 Several parts can be given at once. Each gets a text report and a `<part>.report.json` next to the STL (position of every finding, the limits used, a fingerprint of the file).
 
@@ -99,9 +99,9 @@ Several parts can be given at once. Each gets a text report and a `<part>.report
 |---|---|---|
 | FAIL | 1 | At least one finding makes the part not print-ready. Fix the design. |
 | INCOMPLETE | 2 | The part could not be read, has an implausible size (wrong units), or a check crashed. There is no answer yet. |
-| PASS | 0 | Nothing failed. The line also names any warnings and every check that did not run. |
+| PASS | 0 | Nothing failed. The line also names any warnings and every check that did not run. "Geometry only" means no slicer was consulted. |
 
-- Repeat the verdict line to the user exactly as printed, including "checks not run". A pass that covers one check is not a print-ready part.
+- Repeat the verdict line to the user exactly as printed, including "geometry only" or "checks not run". A geometry-only pass has not been through a slicer: say so.
 - Never call a part print-ready on INCOMPLETE. Fix the export and run again.
 - Warnings are for a person to look at. Say what each one is.
 - Findings that are physical defects (too thin, floating, ledge, bridge over the hard limit, thin posts) cannot be waived. Judgment findings can: see below.
@@ -125,13 +125,16 @@ Do not add an exception to make a part pass. It records a feature that is intend
 
 ### What is automated in this version
 
-The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs **checks 1, 2, 3, 4 and 6**. Do check 5 by hand, as described, and say in your report that it was manual. The numbers each check uses are in the limits table at the end.
+The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs all six checks. Check 5 needs a slicer on the machine; without one the verdict says "geometry only" and you say so in your report. The numbers each check uses are in the limits table at the end.
 
 1. **Layer check (automated).** Slices the part layer by layer. Fails features narrower than the minimum width, outlines that start in mid-air, flat ledges beyond the ledge limit, bridges over the hard limit, and bridge decks that stick out past their supports by more than the ledge limit. Warns on long ceilings.
 2. **Post check (automated).** Fails an overhang or bridge carried only by thin posts when the posts are tall and the overhang is large, and a free-standing column that is too tall for its width. Smaller overhangs on thin posts warn.
 3. **Slope and overhang check (automated).** Fails a top surface that is neither flat nor steep enough, unless it is a narrow fillet band or a small patch. Fails a sloped underside flatter than the overhang limit that runs out further than a ledge may, and warns between that limit and the design target. Flat undersides are bridges and ledges and belong to check 1.
 4. **Inner corner check (automated, report only).** Lists the sharp inner corners along horizontal edges and counts the vertical ones. It never fails a part: go through the list. Every horizontal one should have a fillet (or a 45 degree chamfer where it faces down). Say which ones were left sharp and why.
-5. **Real slicer (manual for now).** Slice with the PrusaSlicer or OrcaSlicer command line: 0.4 mm nozzle, 0.2 mm layers, no supports, 3 walls. Measure the longest bridge over air and how far any overhang wall is out in the air (2 mm at most), and read the slicer's own alerts. The goal is no alert. With 2 walls some alerts come back (measured).
+5. **Real slicer (automated when a slicer is installed).** Slices the part with no supports and 3 walls, measures the longest bridging line over air and how far any overhang wall is printed out in the air, and fails either beyond its limit. With PrusaSlicer it also reads the slicer's own alerts and reports each as a warning: the goal is no alert. With 2 walls some alerts come back (measured).
+   - PrusaSlicer is used when it is installed and needs nothing but the STL.
+   - OrcaSlicer needs three preset files exported from it: `--orca-presets machine.json process.json filament.json`. Supports are switched off in a copy of the process preset. Its alerts are not read; only its bridges and walls are measured.
+   - `--slicer none` skips the check.
 6. **Support prediction (automated).** Lists every flat underside wide enough to get a support when supports are switched on. On the build plate: information. On the model: a warning. On the model where no gap wide enough for a tool leads to it: fails, because the support cannot be pulled out. It looks sideways only, so a room that is open from above still counts as closed. Patches in places a hand cannot reach are designed away.
 
 Slicer command lines print alerts without a location. To find the cause, slice the part cut off at increasing heights to find where the alert first appears, or build the part with one feature at a time.
@@ -139,6 +142,7 @@ Slicer command lines print alerts without a location. To find the cause, slice t
 PrusaSlicer bridges floating regions silently and OrcaSlicer reports them, so do not rely on one slicer for that. A clean slicer run is not proof either: the plates with the 19 degree roof above sliced successfully, and the problem only showed on the print.
 
 ### Known gaps in the automated checks
+- The slicer measurement reads the wall a slicer prints around a flat ledge as a bridge, because that wall is held at both ends. A ledge that is too deep is failed by check 1, not by check 5.
 - Other setups are extrapolated, not measured. `--nozzle 0.6 --layer 0.3` scales the limits that depend on the nozzle and reports their findings as warnings labelled "scaled, not measured". Lengths such as the bridge and ledge limits do not scale and keep their verdict. See section 7.
 
 ## 5. Slicer projects and delivery
@@ -214,12 +218,18 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `overhang_shallow` | warn | yes | Underside flatter than the design target |
 | `sharp_corner_horizontal` | info | no | Sharp inner corner along a horizontal edge |
 | `sharp_corner_vertical` | info | no | Sharp inner corners along vertical edges |
+| `slicer_bridge_too_long` | fail | no | Slicer: bridging line over air longer than the hard limit |
+| `slicer_wall_in_air` | fail | no | Slicer: overhang wall printed too far out in the air |
+| `slicer_alert` | warn | yes | Slicer alert |
+| `slicer_untested_version` | warn | yes | Slicer version this check was not tested with |
+| `slicer_alerts_not_read` | info | no | This slicer's own alerts are not read; only its bridges and walls are measured |
+| `slicer_longest_bridge` | info | no | Slicer: longest bridging line over air |
 | `exception_refused` | warn | no | Exception refused: this kind of finding cannot be waived |
 | `exception_unused` | warn | no | Exception matched no finding |
 | `off_bed` | warn | yes | Lowest point of the part is not at z = 0 |
 | `small_part` | warn | yes | Part is very small: check the export units |
 
-### Checks in version 0.2.0
+### Checks in version 0.3.0
 
 | Check | Runs in this version | What it looks at |
 |---|---|---|
@@ -229,6 +239,6 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | overhang angle | yes | Sloped undersides flatter than the overhang limits |
 | corner | yes | Sharp inner corners (report only) |
 | support | yes | Where supports would go, and whether they can be removed |
-| slicer | no, manual for now | A real slicer run: its alerts, bridges and overhang walls |
+| slicer | yes | A real slicer run: its alerts, bridges and overhang walls. Needs PrusaSlicer or OrcaSlicer |
 
 <!-- end of generated tables -->

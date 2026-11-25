@@ -80,6 +80,14 @@ SUPPORT_GROW = 0.35       # mm the layer below is grown by before looking for un
 SUPPORT_MIN_AREA = 1.0    # mm2; smaller patches are ignored
 SUPPORT_BASE_SHARE = 0.3  # a lower layer is the patch's base when it covers this share of it
 
+# Slicer check.
+SLICER_TIMEOUT = 600      # seconds a slicer run may take
+SLICER_MIN_RUN = 3.0      # mm; overhang-wall runs shorter than this are ignored (letter tips)
+SLICER_MIN_LINE = 2.0     # mm; bridging lines and spans shorter than this are ignored
+SLICER_LEAN = 0.5         # mm; a bridging line this close to the layer below leans on its neighbour
+SLICER_END_HELD = 1.0     # mm; an overhang wall whose ends are this close to the layer below is held there
+SLICER_WALL_MIN = 0.6     # mm; an overhang wall must be at least this far out to be measured
+
 # Internal tolerances of the layer scan. None of these is a design rule.
 WIDTH_TOL = 0.1           # mm added to thin_wall_head, so a wall modelled at exactly the limit counts
 STEP_FACTOR = 1.2         # layer outline is grown by STEP_FACTOR * LAYER before overhangs are
@@ -147,6 +155,18 @@ KINDS = {
                         "text": "Sharp inner corner along a horizontal edge"},
     "sharp_corner_vertical": {"severity": "info", "waivable": False, "limit": "corner_min_edge",
                         "text": "Sharp inner corners along vertical edges"},
+    "slicer_bridge_too_long": {"severity": "fail", "waivable": False, "limit": "max_bridge",
+                        "text": "Slicer: bridging line over air longer than the hard limit"},
+    "slicer_wall_in_air": {"severity": "fail", "waivable": False, "limit": "max_ledge",
+                        "text": "Slicer: overhang wall printed too far out in the air"},
+    "slicer_alert":    {"severity": "warn", "waivable": True, "limit": None,
+                        "text": "Slicer alert"},
+    "slicer_untested_version": {"severity": "warn", "waivable": True, "limit": None,
+                        "text": "Slicer version this check was not tested with"},
+    "slicer_alerts_not_read": {"severity": "info", "waivable": False, "limit": None,
+                        "text": "This slicer's own alerts are not read; only its bridges and walls are measured"},
+    "slicer_longest_bridge": {"severity": "info", "waivable": False, "limit": "max_bridge",
+                        "text": "Slicer: longest bridging line over air"},
     "exception_refused": {"severity": "warn", "waivable": False, "limit": None,
                         "text": "Exception refused: this kind of finding cannot be waived"},
     "exception_unused": {"severity": "warn", "waivable": False, "limit": None,
@@ -169,6 +189,8 @@ SCALING = {
     "overhang_fail_angle": "none", "corner_min_edge": "none",
     "FLAT_ANGLE": "none", "ANGLE_MARGIN": "none", "SURFACE_MIN_AREA": "none", "SLOPE_MIN_AREA": "none", "RUN_TOL": "none", "SHARP_ANGLE": "none",
     "CORNER_LIST_MAX": "none",
+    "SLICER_TIMEOUT": "none", "SLICER_MIN_RUN": "none", "SLICER_MIN_LINE": "none", "SLICER_LEAN": "none",
+    "SLICER_END_HELD": "none", "SLICER_WALL_MIN": "none",
     "POST_THIN_WIDTH": "nozzle", "FLOAT_BOND": "nozzle", "FLOAT_MIN_WIDTH": "nozzle",
     "SUPPORT_GROW": "layer",        # 0.35 mm is one 0.2 mm layer at a 30 degree support threshold
     "MIN_THIN_HEIGHT": "layer",     # three layers

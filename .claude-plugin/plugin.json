@@ -1,7 +1,7 @@
 {
   "name": "fdm-print-ready-models",
   "description": "Design rules and checks for 3D models meant for FDM printing: parts that print on a 0.4 mm nozzle without supports and without slicer alerts.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "Radu Diaconescu"
   },

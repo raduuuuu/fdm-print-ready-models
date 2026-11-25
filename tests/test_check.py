@@ -15,7 +15,7 @@ import layers
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILL = os.path.join(REPO, "skills", "fdm-print-ready-models", "SKILL.md")
 CHECK_PY = os.path.join(REPO, "skills", "fdm-print-ready-models", "scripts", "check.py")
-NOT_RUN = "checks not run: slicer"
+NOT_RUN = "geometry only: the slicer check did not run"
 
 
 def box(x0, x1, y0, y1, z0, z1):
@@ -62,6 +62,8 @@ def test_verdict_precedence(statuses, part_error, verdict):
 def test_crash_and_unshipped_checks_are_named():
     _, quals = check.decide([{"name": "layer", "status": "error"}, {"name": "slicer", "status": "not_shipped"}])
     assert quals == ["crashed: layer", "checks not run: slicer"]
+    _, quals = check.decide([{"name": "layer", "status": "pass"}, {"name": "slicer", "status": "skipped"}])
+    assert quals == ["geometry only: the slicer check did not run"]
 
 
 # ---- whole runs
@@ -77,6 +79,7 @@ def test_good_part_passes_and_says_what_did_not_run(tmp_path, capsys):
     code, out, _ = run([p], capsys)
     assert code == 0
     assert f"VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; {NOT_RUN})" in out
+    assert "the slicer check did not run: no slicer found" in out
 
 
 def test_report_contents(tmp_path, capsys):
@@ -241,4 +244,4 @@ def test_skill_file_is_within_the_documented_size():
 def test_skill_gives_the_command_through_the_skill_folder():
     text = open(SKILL).read()
     assert '"${CLAUDE_SKILL_DIR}/scripts/check.py"' in text
-    assert '--with-requirements "${CLAUDE_SKILL_DIR}/scripts/requirements.txt"' in text
+    assert '--with-requirements "${CLAUDE_SKILL_DIR}/scripts/requirements-slicer.txt"' in text

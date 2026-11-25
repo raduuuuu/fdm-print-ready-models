@@ -16,3 +16,12 @@ def tested_setup():
     limits.use()
     yield
     limits.use()
+
+
+@pytest.fixture(autouse=True)
+def no_slicer_unless_asked(request, monkeypatch):
+    """Tests must give the same result whether or not a slicer is installed. Only tests marked
+    `live_slicer` may find one."""
+    if "live_slicer" not in request.keywords:
+        import slicer
+        monkeypatch.setattr(slicer, "find", lambda kind: None)

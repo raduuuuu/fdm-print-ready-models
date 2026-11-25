@@ -6,6 +6,8 @@
     check.py part.stl --verbose           also list findings that are information only
     check.py part.stl --exceptions e.json intended exceptions (default: <part>.exceptions.json)
     check.py part.stl --nozzle 0.6 --layer 0.3   another setup: scaled limits, warnings only
+    check.py part.stl --slicer none       skip the slicer check (it runs when PrusaSlicer is installed)
+    check.py part.stl --orca-presets machine.json process.json filament.json   use OrcaSlicer
     check.py --skill-tables               print the tables SKILL.md must contain
     check.py --update-skill-tables        rewrite those tables in ../SKILL.md
 
@@ -33,7 +35,7 @@ import platform
 import sys
 import traceback
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 REPORT_SCHEMA = 1
 HERE = os.path.dirname(os.path.abspath(__file__))
 NEEDS = ("numpy", "trimesh", "manifold3d")
@@ -48,7 +50,7 @@ def missing_packages(names=NEEDS):
 
 
 def install_help(missing):
-    req = os.path.join(HERE, "requirements.txt")
+    req = os.path.join(HERE, "requirements-slicer.txt")
     me = os.path.join(HERE, "check.py")
     return (f"Missing Python packages: {', '.join(missing)}.\n"
             f"Run the checks with uv, which installs the pinned packages in a private environment:\n"
@@ -60,34 +62,40 @@ def install_help(missing):
 
 # The checks this tool knows about, in the order SKILL.md describes them. `run` is None for a
 # check that has not shipped yet; such a check is named on every verdict line.
-def _run_layers(solid):
+def _run_layers(solid, ctx):
     import layers
     return layers.run(solid)
 
 
-def _run_posts(solid):
+def _run_posts(solid, ctx):
     import layers
     return layers.run_posts(solid)
 
 
-def _run_supports(solid):
+def _run_supports(solid, ctx):
     import layers
     return layers.run_supports(solid)
 
 
-def _run_slopes(solid):
+def _run_slopes(solid, ctx):
     import surfaces
     return surfaces.run_slopes(solid)
 
 
-def _run_overhangs(solid):
+def _run_overhangs(solid, ctx):
     import surfaces
     return surfaces.run_overhangs(solid)
 
 
-def _run_corners(solid):
+def _run_corners(solid, ctx):
     import surfaces
     return surfaces.run_corners(solid)
+
+
+def _run_slicer(solid, ctx):
+    import slicer
+    return slicer.run(solid, ctx["path"], want=ctx["slicer"], path=ctx["slicer_path"],
+                      orca_presets=ctx["orca_presets"], info=ctx["slicer_info"])
 
 
 CHECKS = [
@@ -98,7 +106,8 @@ CHECKS = [
     {"name": "overhang angle", "run": _run_overhangs, "text": "Sloped undersides flatter than the overhang limits"},
     {"name": "corner", "run": _run_corners, "text": "Sharp inner corners (report only)"},
     {"name": "support", "run": _run_supports, "text": "Where supports would go, and whether they can be removed"},
-    {"name": "slicer", "run": None, "text": "A real slicer run: its alerts, bridges and overhang walls"},
+    {"name": "slicer", "run": _run_slicer,
+     "text": "A real slicer run: its alerts, bridges and overhang walls. Needs PrusaSlicer or OrcaSlicer"},
 ]
 
 
@@ -118,7 +127,7 @@ def decide(check_results, part_error=None):
         quals.append("crashed: " + ", ".join(crashed))
     skipped = [c["name"] for c in check_results if c["status"] == "skipped"]
     if skipped:
-        quals.append("skipped: " + ", ".join(skipped))
+        quals.append("geometry only: the " + ", ".join(skipped) + " check did not run")
     not_run = [c["name"] for c in check_results if c["status"] == "not_shipped"]
     if not_run:
         quals.append("checks not run: " + ", ".join(not_run))
@@ -217,7 +226,7 @@ def _finding_dict(f):
     return d
 
 
-def inspect_part(path, exceptions_path=None):
+def inspect_part(path, exceptions_path=None, slicer="auto", slicer_path=None, orca_presets=None):
     """Everything known about one part, as the report dict. Never raises for a bad part.
     Exceptions are read from `exceptions_path`, or from <part>.exceptions.json if it exists."""
     import limits as L
@@ -277,6 +286,8 @@ def inspect_part(path, exceptions_path=None):
                                 "error": exc_error}
     apply_exceptions(report["part_findings"], exceptions)
 
+    ctx = {"path": path, "slicer": slicer, "slicer_path": slicer_path, "orca_presets": orca_presets,
+           "slicer_info": {}}
     for c in CHECKS:
         entry = {"name": c["name"], "status": "not_shipped", "findings": [], "error": None}
         if c["run"] is not None and solid is None:
@@ -284,13 +295,18 @@ def inspect_part(path, exceptions_path=None):
             entry["error"] = "not run: the part could not be read"
         elif c["run"] is not None:
             try:
-                entry["findings"] = [_finding_dict(f) for f in c["run"](solid)]
+                entry["findings"] = [_finding_dict(f) for f in c["run"](solid, ctx)]
                 apply_exceptions(entry["findings"], exceptions)
                 sev = {f["severity"] for f in entry["findings"]}
                 entry["status"] = "fail" if "fail" in sev else "warn" if "warn" in sev else "pass"
-            except Exception:  # one crashing check must not hide the others; it is reported
-                entry["status"] = "error"
-                entry["error"] = traceback.format_exc()
+            except Exception as e:  # one crashing check must not hide the others; it is reported
+                if type(e).__name__ == "Skipped":       # no slicer, no presets, a package missing
+                    entry["status"], entry["note"] = "skipped", str(e)
+                elif type(e).__name__ == "SlicerError":
+                    entry["status"], entry["error"] = "error", str(e)
+                else:
+                    entry["status"] = "error"
+                    entry["error"] = traceback.format_exc()
         report["checks"].append(entry)
 
     if solid is not None:      # entries that could not or did not apply are shown, never dropped
@@ -316,6 +332,8 @@ def inspect_part(path, exceptions_path=None):
     if verdict == "PASS" and len(ran) < len(CHECKS):
         names = ran[0] if len(ran) == 1 else ", ".join(ran[:-1]) + " and " + ran[-1] if ran else ""
         quals.insert(0, f"{names} check{'s' if len(ran) > 1 else ''} only" if ran else "no check ran")
+    if ctx["slicer_info"]:
+        report["slicer"] = ctx["slicer_info"]
     report.update({"verdict": verdict, "qualifiers": quals, "counts": counts})
     return report
 
@@ -340,6 +358,8 @@ def _describe(f):
         line += f", about {f['width']} mm wide"
     elif f.get("width") and f["kind"].startswith("overhang_"):
         line += f", running out about {f['width']} mm"
+    elif f.get("width") and f["kind"] == "slicer_wall_in_air":
+        line += f", over a run of {f['width']} mm"
     elif f.get("width") and f["kind"].startswith("support_"):
         line += f", {f['width']} mm above the surface it would stand on"
     if f.get("limit") is not None and f["what"] in ("span_mm", "reach_mm"):
@@ -386,6 +406,11 @@ def format_text(report, verbose=False):
                 lines.append(f"  info  {_describe(group[0])}")
             else:
                 lines.append(f"  info  {len(group)} x {L.KINDS[kind]['text']}; --verbose lists them")
+    for c in report["checks"]:
+        if c["status"] == "skipped":
+            lines.append(f"  the {c['name']} check did not run: {c.get('note', '')}")
+    if report.get("slicer"):
+        lines.append(f"  sliced with {report['slicer']['name']} {report['slicer']['version']}")
     for c in report["checks"]:
         if c["status"] == "error" and c["error"] and not report["part_error"]:
             lines.append(f"  the {c['name']} check crashed: {c['error'].strip().splitlines()[-1]}")
@@ -435,6 +460,11 @@ def main(argv=None):
     ap.add_argument("--no-report", action="store_true", help="do not write report files")
     ap.add_argument("--verbose", action="store_true", help="list findings that are information only")
     ap.add_argument("--exceptions", help="exceptions file (one part only; default <part>.exceptions.json)")
+    ap.add_argument("--slicer", choices=("auto", "prusa", "orca", "none"), default="auto",
+                    help="which slicer the slicer check uses (default: PrusaSlicer if installed)")
+    ap.add_argument("--slicer-path", help="path to the slicer program, if it is not found by name")
+    ap.add_argument("--orca-presets", nargs=3, metavar=("MACHINE", "PROCESS", "FILAMENT"),
+                    help="three preset files exported from OrcaSlicer; needed to use it")
     ap.add_argument("--nozzle", type=float, default=None, help="nozzle width in mm (tested: 0.4)")
     ap.add_argument("--layer", type=float, default=None, help="layer height in mm (tested: 0.2)")
     ap.add_argument("--skill-tables", action="store_true", help="print the tables for SKILL.md")
@@ -471,7 +501,7 @@ def main(argv=None):
 
     verdicts = []
     for i, path in enumerate(args.parts):
-        report = inspect_part(path, args.exceptions)
+        report = inspect_part(path, args.exceptions, args.slicer, args.slicer_path, args.orca_presets)
         verdicts.append(report["verdict"])
         if i:
             print()

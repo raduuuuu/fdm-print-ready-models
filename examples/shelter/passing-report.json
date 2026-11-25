@@ -2,9 +2,9 @@
  "schema": 1,
  "tool": {
   "name": "fdm-print-ready-models",
-  "version": "0.2.0"
+  "version": "0.3.0"
  },
- "generated": "2026-11-25T13:19:46Z",
+ "generated": "2026-11-25T13:31:45Z",
  "part": {
   "file": "shelter.stl",
   "sha256": "1c6fb1cedc3d3f06d5925eaea9c5dc0e473fa025b43ef8cfb4f98158afaaf74f",
@@ -209,22 +209,39 @@
   },
   {
    "name": "slicer",
-   "status": "not_shipped",
-   "findings": [],
+   "status": "pass",
+   "findings": [
+    {
+     "kind": "slicer_alerts_not_read",
+     "value": "OrcaSlicer",
+     "what": "note",
+     "x": 0.0,
+     "y": 0.0,
+     "z0": 0.0,
+     "z1": 0.0,
+     "area": 0.0,
+     "width": 0.0,
+     "severity": "info",
+     "scaled": false,
+     "waivable": false,
+     "limit": null
+    }
+   ],
    "error": null
   }
  ],
  "part_error": null,
  "part_findings": [],
+ "slicer": {
+  "name": "OrcaSlicer",
+  "version": "2.5.1"
+ },
  "verdict": "PASS",
- "qualifiers": [
-  "layer, post, slope, overhang angle, corner and support checks only",
-  "checks not run: slicer"
- ],
+ "qualifiers": [],
  "counts": {
   "fail": 0,
   "warn": 0,
-  "info": 5,
+  "info": 6,
   "waived": 0
  }
 }

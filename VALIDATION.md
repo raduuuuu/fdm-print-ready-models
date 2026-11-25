@@ -1,6 +1,6 @@
 # Validation
 
-How the checks were tried on real parts, and what that does and does not show. The parts are private models and are not in this repository; this file records the method and the numbers. Last run: version 0.2.0, 2026-11-25.
+How the checks were tried on real parts, and what that does and does not show. The parts are private models and are not in this repository; this file records the method and the numbers. Last run: version 0.3.0 (in development), 2026-11-25.
 
 ## Reference sets
 
@@ -13,7 +13,7 @@ How the checks were tried on real parts, and what that does and does not show. T
 
 118 parts in all. Setup: 0.4 mm nozzle, 0.2 mm layers.
 
-## Result with the six automated checks
+## Result with the six geometry checks
 
 | Set | Pass | Fail | Crashed |
 |---|---|---|---|
@@ -49,13 +49,20 @@ The 64 dropped "mid-air" outlines are two deliberate changes, each made after a 
 - **Bridge deck past its supports, enclosed supports, overhang on tall thin posts, slender column.** No real part triggers any of these. They are exercised by generated test shapes only.
 - **Corner report.** It lists 2,013 sharp horizontal inner corners across 18 of the 23 printed parts. Those parts printed cleanly, so a long list is normal and is not a sign of a defect by itself. The report never changes the verdict.
 
+## The slicer check
+
+- **PrusaSlicer 2.9.4**, on the test machine, on generated shapes: a 40 mm bridge is reported at 39 to 40 mm and fails, with the slicer's "Long bridging extrusions" alert; a plain block passes with no alert. The alert text and G-code labels match what the original script expected.
+- **OrcaSlicer 2.5.1**, on the author's machine with his own presets: all 23 printed parts pass. Eight have bridging lines over air, none longer than the limit. The 40 mm bridge shape fails at 39.6 mm.
+- Neither slicer's measurement fails a 10 mm flat ledge: the wall the slicer prints around it is held at both ends and reads as a bridge. The layer check fails that part.
+- PrusaSlicer has not been run on the real parts, and OrcaSlicer's own alerts are not read.
+
 ## What this does not show
 
 - Only three of the seven models were printed in their current form. The other four are known only from the older generation.
 - The failure paths listed above have never met a real defect.
 - Bridge, ledge, thin-wall and overhang thresholds are estimates (see EVIDENCE.md for what was measured).
 - Everything comes from one printer, one nozzle and one material.
-- The slicer check is not automated yet, and a clean slicer run would not have caught the 19 degree roof either.
+- A clean slicer run would not have caught the 19 degree roof.
 
 ## Speed
 
