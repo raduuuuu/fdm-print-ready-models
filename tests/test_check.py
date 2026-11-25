@@ -15,7 +15,7 @@ import layers
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILL = os.path.join(REPO, "skills", "fdm-print-ready-models", "SKILL.md")
 CHECK_PY = os.path.join(REPO, "skills", "fdm-print-ready-models", "scripts", "check.py")
-NOT_RUN = "checks not run: slope, overhang angle, corner, slicer"
+NOT_RUN = "checks not run: slicer"
 
 
 def box(x0, x1, y0, y1, z0, z1):
@@ -76,7 +76,7 @@ def test_good_part_passes_and_says_what_did_not_run(tmp_path, capsys):
     p = stl(tmp_path, GOOD)
     code, out, _ = run([p], capsys)
     assert code == 0
-    assert f"VERDICT: PASS (layer, post and support checks only; {NOT_RUN})" in out
+    assert f"VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; {NOT_RUN})" in out
 
 
 def test_report_contents(tmp_path, capsys):
@@ -211,6 +211,11 @@ PROSE = {      # how the design rules in SKILL.md word each limit that the check
     "column_ratio": r"at least 2\.4 mm, at most ([\d.]+) times as tall as wide",
     "support_min_width": r"any flat underside about ([\d.]+) mm or wider gets a support",
     "tool_gap": r"a gap of at least ([\d.]+) mm leading to the support",
+    "roof_min_angle": r"either flat or at least ([\d.]+) degrees steep",
+    "fillet_band": r"A shallow band narrower than about ([\d.]+) mm",
+    "overhang_target_angle": r"Overhangs at ([\d.]+) degrees or steeper",
+    "overhang_fail_angle": r"fails undersides flatter than ([\d.]+) degrees",
+    "corner_min_edge": r"sharp inner edges of ([\d.]+) mm or longer",
 }
 
 

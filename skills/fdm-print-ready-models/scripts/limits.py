@@ -43,7 +43,28 @@ LIMITS = {
                                "are switched on."),
     "tool_gap": Limit(8.0, "mm", "estimate",
                       "Narrowest gap a support can be pulled out through with pliers or a fingertip."),
+    "roof_min_angle": Limit(35.0, "deg", "measured",
+                            "A top surface is flat or at least this steep. 35 printed cleanly, 19 did not."),
+    "fillet_band": Limit(3.0, "mm", "estimate",
+                         "A shallow band narrower than this is a fillet, not a roof."),
+    "overhang_target_angle": Limit(45.0, "deg", "estimate",
+                                   "Design target for undersides. Flatter than this warns."),
+    "overhang_fail_angle": Limit(40.0, "deg", "estimate",
+                                 "An underside flatter than this fails, unless it is a ledge or a bridge."),
+    "corner_min_edge": Limit(2.0, "mm", "estimate",
+                             "Sharp inner edges shorter than this are left out of the corner report."),
 }
+
+# Surface checks.
+FLAT_ANGLE = 3.0          # degrees; flatter than this is flat
+ANGLE_MARGIN = 0.5        # degrees; a surface modelled at exactly a limit must not fail on rounding
+SURFACE_MIN_AREA = 1.0    # mm2; smaller regions are ignored
+SLOPE_MIN_AREA = 150.0    # mm2; a shallow top surface smaller than this is not reported. The value
+#                           of the original slope check; two 38 mm2 patches at 23 degrees printed cleanly
+RUN_TOL = 0.25            # mm; how far past max_ledge a sloped underside must run to be reported.
+#                           The run is estimated from area and outline, so a 2.0 mm step reads 2.0x
+SHARP_ANGLE = 60.0        # degrees between two faces at an inner edge for it to count as sharp
+CORNER_LIST_MAX = 200     # the corner report lists at most this many horizontal corners, longest first
 
 # Post check: what counts as a thin post, and when an overhang resting on thin posts is serious.
 POST_THIN_WIDTH = 1.2     # mm; a piece narrower than this everywhere is a thin post (2-3 lines)
@@ -116,6 +137,16 @@ KINDS = {
                         "text": "Support would stand on the model"},
     "support_on_plate": {"severity": "info", "waivable": False, "limit": "support_min_width",
                         "text": "Support would stand on the build plate"},
+    "slope_too_shallow": {"severity": "fail", "waivable": True, "limit": "roof_min_angle",
+                        "text": "Top surface too shallow to print as a closed skin"},
+    "overhang_too_flat": {"severity": "fail", "waivable": True, "limit": "overhang_fail_angle",
+                        "text": "Underside too flat to print without support"},
+    "overhang_shallow": {"severity": "warn", "waivable": True, "limit": "overhang_target_angle",
+                        "text": "Underside flatter than the design target"},
+    "sharp_corner_horizontal": {"severity": "info", "waivable": False, "limit": "corner_min_edge",
+                        "text": "Sharp inner corner along a horizontal edge"},
+    "sharp_corner_vertical": {"severity": "info", "waivable": False, "limit": "corner_min_edge",
+                        "text": "Sharp inner corners along vertical edges"},
     "off_bed":         {"severity": "warn", "waivable": True, "limit": None,
                         "text": "Lowest point of the part is not at z = 0"},
     "small_part":      {"severity": "warn", "waivable": True, "limit": None,
@@ -130,6 +161,10 @@ SCALING = {
     "min_width": "nozzle", "thin_wall_head": "nozzle",
     "max_ledge": "none", "max_bridge": "none", "ceiling_warn": "none", "column_ratio": "none",
     "support_min_width": "none", "tool_gap": "none",
+    "roof_min_angle": "none", "fillet_band": "none", "overhang_target_angle": "none",
+    "overhang_fail_angle": "none", "corner_min_edge": "none",
+    "FLAT_ANGLE": "none", "ANGLE_MARGIN": "none", "SURFACE_MIN_AREA": "none", "SLOPE_MIN_AREA": "none", "RUN_TOL": "none", "SHARP_ANGLE": "none",
+    "CORNER_LIST_MAX": "none",
     "POST_THIN_WIDTH": "nozzle", "FLOAT_BOND": "nozzle", "FLOAT_MIN_WIDTH": "nozzle",
     "SUPPORT_GROW": "layer",        # 0.35 mm is one 0.2 mm layer at a 30 degree support threshold
     "MIN_THIN_HEIGHT": "layer",     # three layers
@@ -152,7 +187,11 @@ def use(nozzle=TESTED_NOZZLE, layer=TESTED_LAYER):
     g = globals()
     g["NOZZLE"], g["LAYER"] = nozzle, layer
     for name, how in SCALING.items():
-        f = nozzle / TESTED_NOZZLE if how == "nozzle" else layer / TESTED_LAYER if how == "layer" else 1.0
+        if how == "none":           # unchanged, and it keeps its type (some are counts)
+            if name not in _TESTED_LIMITS:
+                g[name] = _TESTED_CONSTANTS[name]
+            continue
+        f = nozzle / TESTED_NOZZLE if how == "nozzle" else layer / TESTED_LAYER
         if name in _TESTED_LIMITS:
             LIMITS[name] = replace(_TESTED_LIMITS[name], value=round(_TESTED_LIMITS[name].value * f, 3))
         else:

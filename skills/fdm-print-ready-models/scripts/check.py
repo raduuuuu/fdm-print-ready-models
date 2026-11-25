@@ -74,13 +74,28 @@ def _run_supports(solid):
     return layers.run_supports(solid)
 
 
+def _run_slopes(solid):
+    import surfaces
+    return surfaces.run_slopes(solid)
+
+
+def _run_overhangs(solid):
+    import surfaces
+    return surfaces.run_overhangs(solid)
+
+
+def _run_corners(solid):
+    import surfaces
+    return surfaces.run_corners(solid)
+
+
 CHECKS = [
     {"name": "layer", "run": _run_layers,
      "text": "Thin features, floating regions, flat ledges and bridges, layer by layer"},
     {"name": "post", "run": _run_posts, "text": "Overhangs carried only by thin posts; slender columns"},
-    {"name": "slope", "run": None, "text": "Top surfaces between 3 and 35 degrees"},
-    {"name": "overhang angle", "run": None, "text": "Undersides flatter than 45 degrees"},
-    {"name": "corner", "run": None, "text": "Sharp inner corners (report only)"},
+    {"name": "slope", "run": _run_slopes, "text": "Top surfaces that are neither flat nor steep enough"},
+    {"name": "overhang angle", "run": _run_overhangs, "text": "Sloped undersides flatter than the overhang limits"},
+    {"name": "corner", "run": _run_corners, "text": "Sharp inner corners (report only)"},
     {"name": "support", "run": _run_supports, "text": "Where supports would go, and whether they can be removed"},
     {"name": "slicer", "run": None, "text": "A real slicer run: its alerts, bridges and overhang walls"},
 ]
@@ -224,7 +239,8 @@ def _describe(f):
     text = L.KINDS[f["kind"]]["text"]
     what = {"span_mm": "span {v} mm", "reach_mm": "sticks out {v} mm", "area_mm2": "area {v} mm2",
             "size_mm": "largest side {v} mm", "z_min_mm": "lowest point at z = {v} mm",
-            "ratio": "{v} times as tall as wide"}[f["what"]]
+            "ratio": "{v} times as tall as wide", "angle_deg": "{v} degrees from the bed",
+            "length_mm": "{v} mm long", "total_length_mm": "{v} mm in total"}[f["what"]]
     line = f"{text}: {what.format(v=f['value'])}"
     if f.get("width") and f["kind"] in ("bridge", "ceiling_bridge"):
         line += f", {f['width']} mm wide"
@@ -232,10 +248,18 @@ def _describe(f):
         line += f", narrowest post {f['width']} mm"
     elif f.get("width") and f["kind"] == "slender_column":
         line += f", {f['width']} mm wide"
+    elif f.get("width") and f["kind"] == "slope_too_shallow":
+        line += f", about {f['width']} mm wide"
+    elif f.get("width") and f["kind"].startswith("overhang_"):
+        line += f", running out about {f['width']} mm"
     elif f.get("width") and f["kind"].startswith("support_"):
         line += f", {f['width']} mm above the surface it would stand on"
     if f.get("limit") is not None and f["what"] in ("span_mm", "reach_mm"):
         line += f" (limit {f['limit']} mm)"
+    if f.get("limit") is not None and f["what"] == "angle_deg":
+        line += f" (limit {f['limit']:g}), {f['area']} mm2"
+    if f["kind"] == "sharp_corner_vertical":
+        return f"{text}: {int(f['area'])} of them, {f['value']} mm in total"
     if f.get("scaled"):
         line += f" [limit scaled from a {L.TESTED_NOZZLE} mm nozzle, not measured]"
     if "x" in f:
@@ -257,9 +281,18 @@ def format_text(report, verbose=False):
     if info and verbose:
         lines += [f"  info  {_describe(f)}" for f in info]
     elif info:
-        longest = max((f["value"] for f in info if f["what"] == "span_mm"), default=None)
-        note = f" (longest {longest} mm)" if longest is not None else ""
-        lines.append(f"  info  {len(info)} bridge{'s' if len(info) != 1 else ''} within limits{note}; --verbose lists them")
+        import limits as L
+        bridges = [f for f in info if f["kind"] == "bridge"]
+        if bridges:
+            longest = max(f["value"] for f in bridges)
+            lines.append(f"  info  {len(bridges)} bridge{'s' if len(bridges) != 1 else ''} within limits "
+                         f"(longest {longest} mm); --verbose lists them")
+        for kind in dict.fromkeys(f["kind"] for f in info if f["kind"] != "bridge"):
+            group = [f for f in info if f["kind"] == kind]
+            if kind == "sharp_corner_vertical":
+                lines.append(f"  info  {_describe(group[0])}")
+            else:
+                lines.append(f"  info  {len(group)} x {L.KINDS[kind]['text']}; --verbose lists them")
     for c in report["checks"]:
         if c["status"] == "error" and c["error"] and not report["part_error"]:
             lines.append(f"  the {c['name']} check crashed: {c['error'].strip().splitlines()[-1]}")

@@ -35,6 +35,7 @@ When a script change should not alter the geometry (a refactor), prove it by com
 ### Inner corners: fillet them
 A sharp inner (concave) corner concentrates stress and is where layers split and parts crack.
 - **Horizontal inner corners are mandatory.** Wherever the corner's edge runs horizontally, such as a wall or post meeting a floor, deck, base plate or ledge, add a fillet. Layer lines run along this corner, so it is the weakest place on the part. Use a radius of about 1 to 2 mm, or as large as the detail allows.
+- The corner report lists sharp inner edges of 2 mm or longer; shorter ones, such as engraved lettering, are left out.
 - **Vertical inner corners are optional but preferred.** Where two walls meet and the edge runs vertically, add a fillet (0.5 to 1 mm is enough) unless it spoils the look or a mating part needs the square corner.
 - Under a ceiling or overhang, where the corner faces down, use a 45 degree chamfer or haunch instead of a round fillet, because the first layers of a round fillet there are nearly flat overhang.
 - Leave corners square only where another part has to seat against them, and say so in the notes.
@@ -107,12 +108,12 @@ Several parts can be given at once. Each gets a text report and a `<part>.report
 
 ### What is automated in this version
 
-The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs **checks 1, 2 and 6**. Do checks 3, 4 and 5 by hand, as described, and say in your report that they were manual. The numbers each check uses are in the limits table at the end.
+The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs **checks 1, 2, 3, 4 and 6**. Do check 5 by hand, as described, and say in your report that it was manual. The numbers each check uses are in the limits table at the end.
 
 1. **Layer check (automated).** Slices the part layer by layer. Fails features narrower than the minimum width, outlines that start in mid-air, flat ledges beyond the ledge limit, bridges over the hard limit, and bridge decks that stick out past their supports by more than the ledge limit. Warns on long ceilings.
 2. **Post check (automated).** Fails an overhang or bridge carried only by thin posts when the posts are tall and the overhang is large, and a free-standing column that is too tall for its width. Smaller overhangs on thin posts warn.
-3. **Slope and overhang check (manual for now).** Upward-facing surfaces between 3 and 35 degrees: none apart from narrow fillets and listed exceptions. Downward-facing surfaces: none flatter than 40 degrees apart from bridges and ledges within their limits.
-4. **Inner corner check (manual for now).** Go through the concave edges. Every horizontal one has a fillet (or a 45 degree chamfer where it faces down). List the vertical ones left sharp and why.
+3. **Slope and overhang check (automated).** Fails a top surface that is neither flat nor steep enough, unless it is a narrow fillet band or a small patch. Fails a sloped underside flatter than the overhang limit that runs out further than a ledge may, and warns between that limit and the design target. Flat undersides are bridges and ledges and belong to check 1.
+4. **Inner corner check (automated, report only).** Lists the sharp inner corners along horizontal edges and counts the vertical ones. It never fails a part: go through the list. Every horizontal one should have a fillet (or a 45 degree chamfer where it faces down). Say which ones were left sharp and why.
 5. **Real slicer (manual for now).** Slice with the PrusaSlicer or OrcaSlicer command line: 0.4 mm nozzle, 0.2 mm layers, no supports, 3 walls. Measure the longest bridge over air and how far any overhang wall is out in the air (2 mm at most), and read the slicer's own alerts. The goal is no alert. With 2 walls some alerts come back (measured).
 6. **Support prediction (automated).** Lists every flat underside wide enough to get a support when supports are switched on. On the build plate: information. On the model: a warning. On the model where no gap wide enough for a tool leads to it: fails, because the support cannot be pulled out. It looks sideways only, so a room that is open from above still counts as closed. Patches in places a hand cannot reach are designed away.
 
@@ -168,6 +169,11 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `column_ratio` | 12 x | estimate | A free-standing column may be at most this many times as tall as wide. |
 | `support_min_width` | 2 mm | estimate | A flat underside at least this wide gets a support when supports are switched on. |
 | `tool_gap` | 8 mm | estimate | Narrowest gap a support can be pulled out through with pliers or a fingertip. |
+| `roof_min_angle` | 35 deg | measured | A top surface is flat or at least this steep. 35 printed cleanly, 19 did not. |
+| `fillet_band` | 3 mm | estimate | A shallow band narrower than this is a fillet, not a roof. |
+| `overhang_target_angle` | 45 deg | estimate | Design target for undersides. Flatter than this warns. |
+| `overhang_fail_angle` | 40 deg | estimate | An underside flatter than this fails, unless it is a ledge or a bridge. |
+| `corner_min_edge` | 2 mm | estimate | Sharp inner edges shorter than this are left out of the corner report. |
 
 ### What the checks report
 
@@ -186,6 +192,11 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `support_enclosed` | fail | yes | Support would stand on the model where it cannot be pulled out |
 | `support_on_model` | warn | yes | Support would stand on the model |
 | `support_on_plate` | info | no | Support would stand on the build plate |
+| `slope_too_shallow` | fail | yes | Top surface too shallow to print as a closed skin |
+| `overhang_too_flat` | fail | yes | Underside too flat to print without support |
+| `overhang_shallow` | warn | yes | Underside flatter than the design target |
+| `sharp_corner_horizontal` | info | no | Sharp inner corner along a horizontal edge |
+| `sharp_corner_vertical` | info | no | Sharp inner corners along vertical edges |
 | `off_bed` | warn | yes | Lowest point of the part is not at z = 0 |
 | `small_part` | warn | yes | Part is very small: check the export units |
 
@@ -195,9 +206,9 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 |---|---|---|
 | layer | yes | Thin features, floating regions, flat ledges and bridges, layer by layer |
 | post | yes | Overhangs carried only by thin posts; slender columns |
-| slope | no, manual for now | Top surfaces between 3 and 35 degrees |
-| overhang angle | no, manual for now | Undersides flatter than 45 degrees |
-| corner | no, manual for now | Sharp inner corners (report only) |
+| slope | yes | Top surfaces that are neither flat nor steep enough |
+| overhang angle | yes | Sloped undersides flatter than the overhang limits |
+| corner | yes | Sharp inner corners (report only) |
 | support | yes | Where supports would go, and whether they can be removed |
 | slicer | no, manual for now | A real slicer run: its alerts, bridges and overhang walls |
 
