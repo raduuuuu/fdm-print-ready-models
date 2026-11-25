@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements-dev.txt uv
+      - name: Tests (checks, runner, generated tables, repository scan)
+        run: pytest -q
+      - name: The documented command on the known-good part
+        run: >
+          uv run --no-project --python 3.12
+          --with-requirements skills/fdm-print-ready-models/scripts/requirements.txt
+          skills/fdm-print-ready-models/scripts/check.py --no-report tests/fixtures/known_good.stl

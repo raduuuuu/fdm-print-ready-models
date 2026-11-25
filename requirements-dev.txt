@@ -1,0 +1,2 @@
+-r skills/fdm-print-ready-models/scripts/requirements.txt
+pytest==9.2.0

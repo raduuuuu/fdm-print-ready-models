@@ -1,0 +1,14 @@
+{
+  "name": "fdm-print-ready-models",
+  "description": "One skill: design rules and checks for FDM print-ready 3D models.",
+  "owner": {
+    "name": "Radu Diaconescu"
+  },
+  "plugins": [
+    {
+      "name": "fdm-print-ready-models",
+      "source": "./",
+      "description": "Design rules and checks for 3D models meant for FDM printing."
+    }
+  ]
+}
