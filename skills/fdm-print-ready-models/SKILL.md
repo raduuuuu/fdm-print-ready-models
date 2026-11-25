@@ -219,7 +219,7 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `off_bed` | warn | yes | Lowest point of the part is not at z = 0 |
 | `small_part` | warn | yes | Part is very small: check the export units |
 
-### Checks in version 0.1.0
+### Checks in version 0.2.0
 
 | Check | Runs in this version | What it looks at |
 |---|---|---|

@@ -14,21 +14,35 @@ The rules come from designing, slicing and printing a set of wooden-railway stat
 ```
 part.stl
   warn  Wide ceiling bridge that may sag: span 12.4 mm, 11.72 mm wide (limit 12.0 mm)  at x 127.6, y 85.0, z 45.1
+  warn  Support would stand on the model: area 26.5 mm2, 8.2 mm above the surface it would stand on  at x 43.0, y 6.2, z 16.1
   info  6 bridges within limits (longest 17.8 mm); --verbose lists them
-VERDICT: PASS (layer check only; with 1 warning; checks not run: post, slope, overhang angle, corner, support, slicer)
+VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; with 2 warnings; checks not run: slicer)
 ```
 
-## Status: version 0.1.0
+## Status: version 0.2.0
 
-The skill describes six checks. This version automates the first one, the layer check: features too thin to print, outlines that start in mid-air, flat ledges, and bridges. The other five are done by hand as the skill describes, and every verdict line names them as not run.
+The skill describes six checks. This version automates all but one:
 
-Planned: the post, slope, overhang-angle, corner and support checks in 0.2, and a real slicer run (PrusaSlicer and OrcaSlicer) in 0.3.
+| Check | What it finds |
+|---|---|
+| Layer | Features too thin to print, outlines that start in mid-air, flat ledges, bridges that are too long, bridge decks that stick out past their supports |
+| Post | Overhangs carried only by thin posts; columns too tall for their width |
+| Slope | Top surfaces too shallow to print as a closed skin |
+| Overhang angle | Sloped undersides that are too flat |
+| Corner | Sharp inner corners. A report for a person to read; it never fails a part |
+| Support | Where supports would go if someone switches them on, and where one could not be pulled out |
+
+The real slicer run (PrusaSlicer and OrcaSlicer) is still done by hand and is planned for 0.3. Every verdict line says so.
+
+Findings that are judgment calls, such as a ramp that is meant to be shallow, can be recorded as intended in `<part>.exceptions.json`; the skill explains the format. Physical defects cannot be waived.
 
 **Tested setup.** Bambu Lab X1 Carbon, 0.4 mm nozzle, 0.2 mm layers, PLA. The command takes `--nozzle` and `--layer` for other setups; limits that depend on the nozzle are then scaled and reported as warnings, because they were not measured. Section 7 of the skill says what to re-test on other printers and materials; that section is guidance, not measurement.
 
 **Platforms.** The checks are tested on macOS and Linux. Windows is untested.
 
-**Known gap.** An overhang held on two sides is treated as a bridge even when part of it sticks out past those supports. A slicer run catches that case; the layer check does not yet.
+**What has and has not met a real part.** [VALIDATION.md](VALIDATION.md) has the detail. In short: every part of three printed models passes, and the roof that printed badly fails. Several failure paths have only been exercised by generated test shapes.
+
+A worked example is in [examples/shelter](examples/shelter/).
 
 ## Install
 
@@ -65,7 +79,7 @@ python3 -m venv .venv
 .venv/bin/python skills/fdm-print-ready-models/scripts/check.py part.stl
 ```
 
-Try it on the sample part: `tests/fixtures/known_good.stl`.
+Try it on the worked example: `examples/shelter/shelter.stl`.
 
 | Verdict | Exit code | Meaning |
 |---|---|---|
@@ -85,7 +99,8 @@ Each part also gets `<part>.report.json` next to the STL: the position of every 
 | `Part is very small: check the export units` | Same cause, usually an inch export. Ignore it if the part really is under 5 mm |
 | Many failures on a part that looks fine | The part is probably not in print orientation. Export it standing on the bed the way it will print |
 | `Lowest point of the part is not at z = 0` | The part was exported at its assembled height. The checks still run; the warning is a reminder |
-| `layer check only; checks not run: …` | Expected in 0.1.0. A pass covers the layer check and nothing else |
+| `checks not run: slicer` | Expected in 0.2.0. A pass covers the six automated checks, not a slicer run |
+| `problem with the exceptions file` | The message says which entry and why. Fix the file; until then the run is INCOMPLETE |
 
 If a result looks wrong, open an issue and attach the `report.json`.
 

@@ -1,6 +1,6 @@
 # Validation
 
-How the checks were tried on real parts, and what that does and does not show. The parts are private models and are not in this repository; this file records the method and the numbers. Last run: version 0.2 (in development), 2026-11-25.
+How the checks were tried on real parts, and what that does and does not show. The parts are private models and are not in this repository; this file records the method and the numbers. Last run: version 0.2.0, 2026-11-25.
 
 ## Reference sets
 

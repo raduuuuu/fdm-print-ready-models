@@ -20,4 +20,4 @@ jobs:
         run: >
           uv run --no-project --python 3.12
           --with-requirements skills/fdm-print-ready-models/scripts/requirements.txt
-          skills/fdm-print-ready-models/scripts/check.py --no-report tests/fixtures/known_good.stl
+          skills/fdm-print-ready-models/scripts/check.py --no-report tests/fixtures/known_good.stl examples/shelter/shelter.stl

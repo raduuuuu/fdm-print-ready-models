@@ -1,0 +1,230 @@
+{
+ "schema": 1,
+ "tool": {
+  "name": "fdm-print-ready-models",
+  "version": "0.2.0"
+ },
+ "generated": "2026-11-25T13:19:46Z",
+ "part": {
+  "file": "shelter.stl",
+  "sha256": "1c6fb1cedc3d3f06d5925eaea9c5dc0e473fa025b43ef8cfb4f98158afaaf74f",
+  "size_mm": [
+   50.0,
+   30.0,
+   47.0
+  ],
+  "z_min": 0.0,
+  "bodies": 1
+ },
+ "setup": {
+  "nozzle_mm": 0.4,
+  "layer_mm": 0.2,
+  "tested": true
+ },
+ "limits": {
+  "min_width": {
+   "value": 0.8,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "max_ledge": {
+   "value": 2.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "max_bridge": {
+   "value": 30.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "ceiling_warn": {
+   "value": 12.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "thin_wall_head": {
+   "value": 3.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "column_ratio": {
+   "value": 12.0,
+   "unit": "x",
+   "source": "estimate"
+  },
+  "support_min_width": {
+   "value": 2.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "tool_gap": {
+   "value": 8.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "roof_min_angle": {
+   "value": 35.0,
+   "unit": "deg",
+   "source": "measured"
+  },
+  "fillet_band": {
+   "value": 3.0,
+   "unit": "mm",
+   "source": "estimate"
+  },
+  "overhang_target_angle": {
+   "value": 45.0,
+   "unit": "deg",
+   "source": "estimate"
+  },
+  "overhang_fail_angle": {
+   "value": 40.0,
+   "unit": "deg",
+   "source": "estimate"
+  },
+  "corner_min_edge": {
+   "value": 2.0,
+   "unit": "mm",
+   "source": "estimate"
+  }
+ },
+ "versions": {
+  "python": "3.12.14",
+  "numpy": "2.5.5",
+  "trimesh": "5.2.2",
+  "manifold3d": "3.5.5"
+ },
+ "checks": [
+  {
+   "name": "layer",
+   "status": "pass",
+   "findings": [],
+   "error": null
+  },
+  {
+   "name": "post",
+   "status": "pass",
+   "findings": [],
+   "error": null
+  },
+  {
+   "name": "slope",
+   "status": "pass",
+   "findings": [],
+   "error": null
+  },
+  {
+   "name": "overhang angle",
+   "status": "pass",
+   "findings": [],
+   "error": null
+  },
+  {
+   "name": "corner",
+   "status": "pass",
+   "findings": [
+    {
+     "kind": "sharp_corner_horizontal",
+     "value": 27.6,
+     "what": "length_mm",
+     "x": 25.0,
+     "y": 16.2,
+     "z0": 43.61,
+     "z1": 43.61,
+     "area": 0.0,
+     "width": 0.0,
+     "severity": "info",
+     "scaled": false,
+     "waivable": false,
+     "limit": 2.0
+    },
+    {
+     "kind": "sharp_corner_horizontal",
+     "value": 2.4,
+     "what": "length_mm",
+     "x": 20.0,
+     "y": 1.2,
+     "z0": 13.0,
+     "z1": 13.0,
+     "area": 0.0,
+     "width": 0.0,
+     "severity": "info",
+     "scaled": false,
+     "waivable": false,
+     "limit": 2.0
+    },
+    {
+     "kind": "sharp_corner_horizontal",
+     "value": 2.4,
+     "what": "length_mm",
+     "x": 30.0,
+     "y": 1.2,
+     "z0": 13.0,
+     "z1": 13.0,
+     "area": 0.0,
+     "width": 0.0,
+     "severity": "info",
+     "scaled": false,
+     "waivable": false,
+     "limit": 2.0
+    },
+    {
+     "kind": "sharp_corner_horizontal",
+     "value": 2.4,
+     "what": "length_mm",
+     "x": 25.0,
+     "y": 1.2,
+     "z0": 23.0,
+     "z1": 23.0,
+     "area": 0.0,
+     "width": 0.0,
+     "severity": "info",
+     "scaled": false,
+     "waivable": false,
+     "limit": 2.0
+    },
+    {
+     "kind": "sharp_corner_vertical",
+     "value": 18.0,
+     "what": "total_length_mm",
+     "x": 0.0,
+     "y": 0.0,
+     "z0": 0.0,
+     "z1": 0.0,
+     "area": 2.0,
+     "width": 0.0,
+     "severity": "info",
+     "scaled": false,
+     "waivable": false,
+     "limit": 2.0
+    }
+   ],
+   "error": null
+  },
+  {
+   "name": "support",
+   "status": "pass",
+   "findings": [],
+   "error": null
+  },
+  {
+   "name": "slicer",
+   "status": "not_shipped",
+   "findings": [],
+   "error": null
+  }
+ ],
+ "part_error": null,
+ "part_findings": [],
+ "verdict": "PASS",
+ "qualifiers": [
+  "layer, post, slope, overhang angle, corner and support checks only",
+  "checks not run: slicer"
+ ],
+ "counts": {
+  "fail": 0,
+  "warn": 0,
+  "info": 5,
+  "waived": 0
+ }
+}

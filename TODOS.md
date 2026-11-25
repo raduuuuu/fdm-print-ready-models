@@ -3,7 +3,6 @@
 Deferred on purpose. Each entry says why it waits.
 
 ## Planned releases
-- **0.2**: post, slope, overhang-angle, corner (report only) and support checks; a file for recording intended exceptions; nozzle and layer-height settings; a worked example; the fix for overhangs that stick out past their two supports.
 - **0.3**: a real slicer run with PrusaSlicer and OrcaSlicer.
 
 ## Later
@@ -31,6 +30,12 @@ Deferred on purpose. Each entry says why it waits.
 - **Why:** the skill states this tier and no geometry check covers it.
 - **Cost:** needs a definition of "free-standing post" that does not fire on short wall stubs.
 - **Depends on:** the 0.2 post check.
+
+### A shorter corner report
+- **What:** narrow the corner report to the corners that matter.
+- **Why:** on real parts that printed cleanly it lists about two thousand sharp horizontal corners, too many to act on.
+- **Cost:** needs a decision on which corners the fillet rule really means.
+- **Depends on:** nothing.
 
 ### Windows
 - **What:** run the tests and the command on Windows.

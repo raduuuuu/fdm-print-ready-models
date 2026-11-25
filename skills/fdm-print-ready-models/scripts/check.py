@@ -33,7 +33,7 @@ import platform
 import sys
 import traceback
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 REPORT_SCHEMA = 1
 HERE = os.path.dirname(os.path.abspath(__file__))
 NEEDS = ("numpy", "trimesh", "manifold3d")

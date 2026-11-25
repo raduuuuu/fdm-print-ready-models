@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-11-25)
+
+Six of the seven checks are now automated. Only the slicer run is still done by hand.
 
 - Post check: overhangs carried only by thin posts, and columns too tall for their width.
 - Support prediction: where supports would go, and a failure where one could not be pulled out.
@@ -9,6 +11,8 @@
 - Slope check: top surfaces too shallow to print, ignoring fillet bands and small patches.
 - Overhang-angle check: sloped undersides flatter than 40 degrees fail, 40 to 45 warn.
 - Corner report: sharp inner corners, listed for a person to judge.
+- A worked example: `examples/shelter/`, a generator, its STL, a picture and its report.
+- VALIDATION.md: how the checks did on 118 real parts.
 - Intended exceptions: `<part>.exceptions.json` waives judgment findings, each with a reason shown on the verdict. Physical defects cannot be waived.
 
 ## 0.1.0 (2026-11-25)
