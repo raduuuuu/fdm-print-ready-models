@@ -4,7 +4,7 @@ An agent skill for designing 3D models that print on an FDM printer without supp
 
 It is for people who build parts in code with an AI agent (Python with manifold3d or trimesh, for example) and print them on a 0.4 mm nozzle. It is not a CAD tutorial and it does not control a printer.
 
-The rules come from designing, slicing and printing a set of wooden-railway station models in one filament colour. Each number in the skill says whether it was measured on a real print or slice, or is an estimate. [EVIDENCE.md](EVIDENCE.md) lists the measured ones with their source.
+The rules come from designing, slicing and printing a set of wooden-railway station models in one filament colour. Each number in the skill says whether it was measured on a real print or slice, or is an estimate. [EVIDENCE.md](EVIDENCE.md) lists the measured ones with their source. [VALIDATION.md](VALIDATION.md) records how the checks did on 118 real parts.
 
 ## What you get
 
