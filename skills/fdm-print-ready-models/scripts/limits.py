@@ -7,10 +7,12 @@ generated from LIMITS, so the text and the code cannot state different numbers.
 All limits are for the tested setup: 0.4 mm nozzle, 0.2 mm layers, PLA.
 `source` is "measured" (seen on a real print or slice) or "estimate" (a starting point).
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-NOZZLE = 0.4   # mm
-LAYER = 0.2    # mm
+TESTED_NOZZLE = 0.4   # mm; the setup every number below was chosen on
+TESTED_LAYER = 0.2    # mm
+NOZZLE = TESTED_NOZZLE   # the setup in use; change it with use()
+LAYER = TESTED_LAYER
 
 
 @dataclass(frozen=True)
@@ -71,10 +73,10 @@ FLOAT_MIN_AREA = 0.05     # mm2; smaller outlines are ignored by the floating-re
 FLOAT_SHRINK = 0.03       # mm the layer below is shrunk by: touching along an edge is not support
 FLOAT_OVERLAP = 0.02      # an outline resting on less than this share of its area is floating
 FLOAT_MIN_OVERLAP = 0.01  # mm2; or on less than this much area
-FLOAT_BOND = NOZZLE / 2        # mm; an outline within this distance of the layer below touches it and
+FLOAT_BOND = 0.2          # mm (half a nozzle width); an outline within this distance of the layer below touches it and
 #                           is judged as a ledge (max_ledge), not as floating. Columns that start
 #                           beside a bar, sharing an edge, printed cleanly on three real parts
-FLOAT_MIN_WIDTH = NOZZLE / 2   # mm; an outline narrower than this is a slicing sliver that no
+FLOAT_MIN_WIDTH = 0.2     # mm (half a nozzle width); an outline narrower than this is a slicing sliver that no
 #                           slicer extrudes, so it cannot float (0.02 mm wide slivers on a roof
 #                           that printed cleanly were reported before this floor existed)
 
@@ -88,7 +90,7 @@ BED_TOL = 0.01            # mm; a lowest point further from z = 0 than this warn
 # How serious each kind of finding is, whether it may be waived, and what it is compared with.
 # fail = the part is not print-ready; warn = look at it; info = reported, not judged.
 KINDS = {
-    "thin_feature":    {"severity": "fail", "waivable": False, "limit": "min_width",
+    "thin_feature":    {"severity": "fail", "waivable": False, "limit": "min_width", "scales": True,
                         "text": "Feature narrower than the minimum width"},
     "floating_region": {"severity": "fail", "waivable": False, "limit": None,
                         "text": "Outline that starts in mid-air, touching nothing below it"},
@@ -102,11 +104,11 @@ KINDS = {
                         "text": "Bridge within limits"},
     "overhang_past_supports": {"severity": "fail", "waivable": False, "limit": "max_ledge",
                         "text": "Bridge whose deck sticks out past its supports"},
-    "thin_post_overhang": {"severity": "fail", "waivable": False, "limit": None,
+    "thin_post_overhang": {"severity": "fail", "waivable": False, "limit": None, "scales": True,
                         "text": "Overhang carried only by thin posts"},
     "thin_post_overhang_small": {"severity": "warn", "waivable": True, "limit": None,
                         "text": "Small overhang carried only by thin posts"},
-    "slender_column":  {"severity": "fail", "waivable": False, "limit": "column_ratio",
+    "slender_column":  {"severity": "fail", "waivable": False, "limit": "column_ratio", "scales": True,
                         "text": "Free-standing column too tall for its width"},
     "support_enclosed": {"severity": "fail", "waivable": True, "limit": "tool_gap",
                         "text": "Support would stand on the model where it cannot be pulled out"},
@@ -119,6 +121,51 @@ KINDS = {
     "small_part":      {"severity": "warn", "waivable": True, "limit": None,
                         "text": "Part is very small: check the export units"},
 }
+
+
+# How each number changes on another nozzle or layer height. "nozzle": in proportion to the
+# nozzle width. "layer": in proportion to the layer height. "none": it does not change, and a
+# finding against it keeps its verdict on any setup. Every number in this file is listed.
+SCALING = {
+    "min_width": "nozzle", "thin_wall_head": "nozzle",
+    "max_ledge": "none", "max_bridge": "none", "ceiling_warn": "none", "column_ratio": "none",
+    "support_min_width": "none", "tool_gap": "none",
+    "POST_THIN_WIDTH": "nozzle", "FLOAT_BOND": "nozzle", "FLOAT_MIN_WIDTH": "nozzle",
+    "SUPPORT_GROW": "layer",        # 0.35 mm is one 0.2 mm layer at a 30 degree support threshold
+    "MIN_THIN_HEIGHT": "layer",     # three layers
+    "POST_THIN_AREA": "none", "COLUMN_MIN_HEIGHT": "none", "POST_OVERHANG_AREA": "none",
+    "POST_FAIL_HEIGHT": "none", "POST_FAIL_AREA": "none", "POST_WIDE_AREA": "none",
+    "SUPPORT_MIN_AREA": "none", "SUPPORT_BASE_SHARE": "none", "WIDTH_TOL": "none",
+    "STEP_FACTOR": "none",          # a factor of the layer height already
+    "MIN_ISLAND_AREA": "none", "MIN_THIN_AREA": "none", "MIN_THIN_TOTAL": "none",
+    "BRIDGE_HELD": "none", "FLOAT_MIN_AREA": "none", "FLOAT_SHRINK": "none",
+    "FLOAT_OVERLAP": "none", "FLOAT_MIN_OVERLAP": "none",
+    "MIN_PART_SIZE": "none", "MAX_PART_SIZE": "none", "SMALL_PART_SIZE": "none", "BED_TOL": "none",
+}
+_TESTED_LIMITS = dict(LIMITS)
+_TESTED_CONSTANTS = {n: globals()[n] for n in SCALING if n not in LIMITS}
+
+
+def use(nozzle=TESTED_NOZZLE, layer=TESTED_LAYER):
+    """Switch every number to another nozzle width and layer height. use() returns to the
+    tested setup. Scaled numbers are reasoning, not measurement."""
+    g = globals()
+    g["NOZZLE"], g["LAYER"] = nozzle, layer
+    for name, how in SCALING.items():
+        f = nozzle / TESTED_NOZZLE if how == "nozzle" else layer / TESTED_LAYER if how == "layer" else 1.0
+        if name in _TESTED_LIMITS:
+            LIMITS[name] = replace(_TESTED_LIMITS[name], value=round(_TESTED_LIMITS[name].value * f, 3))
+        else:
+            g[name] = _TESTED_CONSTANTS[name] * f
+
+
+def tested():
+    return NOZZLE == TESTED_NOZZLE and LAYER == TESTED_LAYER
+
+
+def kind_is_scaled(kind):
+    """True when a finding of this kind rests on a number that was scaled for the setup in use."""
+    return bool(KINDS[kind].get("scales")) and NOZZLE != TESTED_NOZZLE
 
 
 def value(name):

@@ -24,7 +24,7 @@ The skill describes six checks. This version automates the first one, the layer 
 
 Planned: the post, slope, overhang-angle, corner and support checks in 0.2, and a real slicer run (PrusaSlicer and OrcaSlicer) in 0.3.
 
-**Tested setup.** Bambu Lab X1 Carbon, 0.4 mm nozzle, 0.2 mm layers, PLA. The command supports that nozzle and layer height only. Section 7 of the skill says what to re-test on other printers and materials; that section is guidance, not measurement.
+**Tested setup.** Bambu Lab X1 Carbon, 0.4 mm nozzle, 0.2 mm layers, PLA. The command takes `--nozzle` and `--layer` for other setups; limits that depend on the nozzle are then scaled and reported as warnings, because they were not measured. Section 7 of the skill says what to re-test on other printers and materials; that section is guidance, not measurement.
 
 **Platforms.** The checks are tested on macOS and Linux. Windows is untested.
 

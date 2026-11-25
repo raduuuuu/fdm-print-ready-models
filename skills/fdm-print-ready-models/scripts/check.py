@@ -4,11 +4,14 @@
     check.py part.stl --out report.json   choose the report path (one part only)
     check.py part.stl --no-report         do not write a report file
     check.py part.stl --verbose           also list findings that are information only
+    check.py part.stl --nozzle 0.6 --layer 0.3   another setup: scaled limits, warnings only
     check.py --skill-tables               print the tables SKILL.md must contain
     check.py --update-skill-tables        rewrite those tables in ../SKILL.md
 
 The part must be an STL in print orientation: flat side on the bed, z up, sizes in mm.
-Checked for a 0.4 mm nozzle and 0.2 mm layers.
+Checked for a 0.4 mm nozzle and 0.2 mm layers unless --nozzle and --layer say otherwise. On
+another setup, limits that depend on the nozzle are scaled and their findings are warnings,
+because the scaled numbers were never measured. Lengths such as bridge limits do not scale.
 
 Verdict and exit code:
     FAIL        1   at least one finding that makes the part not print-ready
@@ -130,6 +133,9 @@ def _finding_dict(f):
     d = f.to_dict()
     k = L.KINDS[f.kind]
     d["severity"] = k["severity"]
+    d["scaled"] = L.kind_is_scaled(f.kind)
+    if d["scaled"] and d["severity"] == "fail":
+        d["severity"] = "warn"       # a limit scaled from the tested setup is not a measured rule
     d["waivable"] = k["waivable"]
     d["limit"] = None if k["limit"] is None else L.value(k["limit"])
     return d
@@ -143,7 +149,7 @@ def inspect_part(path):
         "tool": {"name": "fdm-print-ready-models", "version": __version__},
         "generated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "part": {"file": os.path.basename(path)},
-        "setup": {"nozzle_mm": L.NOZZLE, "layer_mm": L.LAYER},
+        "setup": {"nozzle_mm": L.NOZZLE, "layer_mm": L.LAYER, "tested": L.tested()},
         "limits": {n: {"value": lim.value, "unit": lim.unit, "source": lim.source}
                    for n, lim in L.LIMITS.items()},
         "versions": _versions(),
@@ -204,6 +210,8 @@ def inspect_part(path):
     if counts["warn"]:
         quals.insert(0, f"with {counts['warn']} warning{'s' if counts['warn'] != 1 else ''}")
     ran = [c["name"] for c in report["checks"] if c["status"] in ("pass", "warn", "fail")]
+    if not L.tested():
+        quals.insert(0, f"{L.NOZZLE:g} mm nozzle and {L.LAYER:g} mm layers: scaled limits, not measured")
     if verdict == "PASS" and len(ran) < len(CHECKS):
         names = ran[0] if len(ran) == 1 else ", ".join(ran[:-1]) + " and " + ran[-1] if ran else ""
         quals.insert(0, f"{names} check{'s' if len(ran) > 1 else ''} only" if ran else "no check ran")
@@ -228,6 +236,8 @@ def _describe(f):
         line += f", {f['width']} mm above the surface it would stand on"
     if f.get("limit") is not None and f["what"] in ("span_mm", "reach_mm"):
         line += f" (limit {f['limit']} mm)"
+    if f.get("scaled"):
+        line += f" [limit scaled from a {L.TESTED_NOZZLE} mm nozzle, not measured]"
     if "x" in f:
         z = f"{f['z0']}" if f["z0"] == f["z1"] else f"{f['z0']} to {f['z1']}"
         line += f"  at x {f['x']}, y {f['y']}, z {z}"
@@ -261,6 +271,7 @@ def format_text(report, verbose=False):
 def skill_tables():
     """The tables SKILL.md must contain, generated so the text cannot disagree with the code."""
     import limits as L
+    L.use()       # the tables always describe the tested setup
     out = [BEGIN, "", "### Limits the checks use", "",
            f"For a {L.NOZZLE} mm nozzle and {L.LAYER} mm layers.", "",
            "| Limit | Value | Source | Meaning |", "|---|---|---|---|"]
@@ -297,6 +308,8 @@ def main(argv=None):
     ap.add_argument("--out", help="report path (one part only)")
     ap.add_argument("--no-report", action="store_true", help="do not write report files")
     ap.add_argument("--verbose", action="store_true", help="list findings that are information only")
+    ap.add_argument("--nozzle", type=float, default=None, help="nozzle width in mm (tested: 0.4)")
+    ap.add_argument("--layer", type=float, default=None, help="layer height in mm (tested: 0.2)")
     ap.add_argument("--skill-tables", action="store_true", help="print the tables for SKILL.md")
     ap.add_argument("--update-skill-tables", action="store_true", help="rewrite the tables in ../SKILL.md")
     ap.add_argument("--version", action="version", version=__version__)
@@ -318,6 +331,13 @@ def main(argv=None):
     if missing:
         print(install_help(missing), file=sys.stderr)
         return 2
+    import limits as L
+    nozzle = L.TESTED_NOZZLE if args.nozzle is None else args.nozzle
+    layer = L.TESTED_LAYER if args.layer is None else args.layer
+    if not (0.1 <= nozzle <= 2.0 and 0.04 <= layer <= nozzle):
+        print("--nozzle must be 0.1 to 2.0 mm and --layer 0.04 mm up to the nozzle width", file=sys.stderr)
+        return 2
+    L.use(nozzle, layer)
 
     verdicts = []
     for i, path in enumerate(args.parts):

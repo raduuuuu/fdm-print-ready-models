@@ -121,7 +121,7 @@ Slicer command lines print alerts without a location. To find the cause, slice t
 PrusaSlicer bridges floating regions silently and OrcaSlicer reports them, so do not rely on one slicer for that. A clean slicer run is not proof either: the plates with the 19 degree roof above sliced successfully, and the problem only showed on the print.
 
 ### Known gaps in the automated checks
-- The command supports the tested setup only: 0.4 mm nozzle, 0.2 mm layers.
+- Other setups are extrapolated, not measured. `--nozzle 0.6 --layer 0.3` scales the limits that depend on the nozzle and reports their findings as warnings labelled "scaled, not measured". Lengths such as the bridge and ledge limits do not scale and keep their verdict. See section 7.
 
 ## 5. Slicer projects and delivery
 - Ask which slicer and printer the recipient uses and start from that printer's default profile.

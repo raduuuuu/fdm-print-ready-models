@@ -5,6 +5,7 @@
 - Post check: overhangs carried only by thin posts, and columns too tall for their width.
 - Support prediction: where supports would go, and a failure where one could not be pulled out.
 - The layer check now fails a bridge deck that sticks out past its supports.
+- `--nozzle` and `--layer` for other setups: scaled limits, reported as warnings.
 
 ## 0.1.0 (2026-11-25)
 

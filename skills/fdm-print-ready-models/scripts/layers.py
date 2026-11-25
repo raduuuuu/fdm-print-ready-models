@@ -115,10 +115,11 @@ def inscribed_width(cs):
 _SLICES = []     # [solid, layer, result] for the last solid sliced
 
 
-def slices_of(m, layer=L.LAYER):
+def slices_of(m, layer=None):
     """(z of the bed, [(z, outline), ...]) for a solid. Sliced once and remembered for the last
     solid only, so the layer, post and support checks share one slicing pass. The solid itself
     is kept and compared by identity: an id() alone can be reused by a later object."""
+    layer = L.LAYER if layer is None else layer
     if not (_SLICES and _SLICES[0] is m and _SLICES[1] == layer):
         bb = m.bounding_box()
         _SLICES[:] = [m, layer, (bb[2], [(z, m.slice(z)) for z in np.arange(bb[2] + layer / 2, bb[5], layer)])]
@@ -135,7 +136,7 @@ def _past_supports(island, touch, step):
     return _reach(outside, span)
 
 
-def scan(m, layer=L.LAYER, min_width=None, max_ledge=None, max_bridge=None, ceiling_warn=None,
+def scan(m, layer=None, min_width=None, max_ledge=None, max_bridge=None, ceiling_warn=None,
          cantilever=True):
     """One pass over the layers. Returns per-layer raw items:
 
@@ -148,6 +149,7 @@ def scan(m, layer=L.LAYER, min_width=None, max_ledge=None, max_bridge=None, ceil
     max_ledge = L.value("max_ledge") if max_ledge is None else max_ledge
     max_bridge = L.value("max_bridge") if max_bridge is None else max_bridge
     ceiling_warn = L.value("ceiling_warn") if ceiling_warn is None else ceiling_warn
+    layer = L.LAYER if layer is None else layer
     step = layer * L.STEP_FACTOR
 
     z0, sliced = slices_of(m, layer)
@@ -252,7 +254,7 @@ def _near(a, b, tol=3.0):
     return abs(a.x - b["x"]) < tol and abs(a.y - b["y"]) < tol and abs(a.z0 - b["z0"]) < 0.31
 
 
-def run(m, layer=L.LAYER):
+def run(m, layer=None):
     """All layer findings for a solid, as a list of Finding. Nothing here decides pass or fail."""
     thin, over, floats = scan(m, layer=layer)
     out = []
@@ -289,9 +291,10 @@ def run(m, layer=L.LAYER):
     return out
 
 
-def scan_posts(m, layer=L.LAYER):
+def scan_posts(m, layer=None):
     """Overhangs carried only by thin posts, and slender columns. Port of the original post
     check: {"overhang": [...], "slender": [...]} with the same fields."""
+    layer = L.LAYER if layer is None else layer
     z0, sliced = slices_of(m, layer)
     step = layer * L.STEP_FACTOR
     prev_isl, prev = [], None      # islands of the layer below: (outline, thin, stack height, width, column id)
@@ -358,7 +361,7 @@ def _merge_posts(items, tol=4.0):
     return out
 
 
-def run_posts(m, layer=L.LAYER):
+def run_posts(m, layer=None):
     res = scan_posts(m, layer)
     out = []
     for f in res["overhang"]:
@@ -373,7 +376,7 @@ def run_posts(m, layer=L.LAYER):
     return out
 
 
-def scan_supports(m, layer=L.LAYER):
+def scan_supports(m, layer=None):
     """Where a slicer with supports on would put them: per layer, the area not carried by the
     layer below, keeping patches at least support_min_width wide.
     Returns [(z, outline, layer index, base layer index or None)]; None = stands on the plate."""
@@ -413,8 +416,9 @@ def _tool_reach(outline, frame):
     return None if outer is None else _off(outer, r)
 
 
-def run_supports(m, layer=L.LAYER):
+def run_supports(m, layer=None):
     from manifold3d import CrossSection
+    layer = L.LAYER if layer is None else layer
     z0, sliced = slices_of(m, layer)
     bb = m.bounding_box()
     pad = 2 * L.value("tool_gap")
