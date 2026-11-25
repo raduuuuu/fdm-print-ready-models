@@ -9,6 +9,7 @@
 - Slope check: top surfaces too shallow to print, ignoring fillet bands and small patches.
 - Overhang-angle check: sloped undersides flatter than 40 degrees fail, 40 to 45 warn.
 - Corner report: sharp inner corners, listed for a person to judge.
+- Intended exceptions: `<part>.exceptions.json` waives judgment findings, each with a reason shown on the verdict. Physical defects cannot be waived.
 
 ## 0.1.0 (2026-11-25)
 

@@ -4,6 +4,7 @@
     check.py part.stl --out report.json   choose the report path (one part only)
     check.py part.stl --no-report         do not write a report file
     check.py part.stl --verbose           also list findings that are information only
+    check.py part.stl --exceptions e.json intended exceptions (default: <part>.exceptions.json)
     check.py part.stl --nozzle 0.6 --layer 0.3   another setup: scaled limits, warnings only
     check.py --skill-tables               print the tables SKILL.md must contain
     check.py --update-skill-tables        rewrite those tables in ../SKILL.md
@@ -124,6 +125,66 @@ def decide(check_results, part_error=None):
     return verdict, quals
 
 
+def load_exceptions(path):
+    """Read an exceptions file. Returns a list of {"kind", "box", "reason"}.
+    Raises ValueError with a message a person can act on when the file is not usable."""
+    import limits as L
+    try:
+        with open(path) as fh:
+            data = json.load(fh)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"not valid JSON at line {e.lineno}, column {e.colno}: {e.msg}")
+    except OSError as e:
+        raise ValueError(f"cannot be read ({e.strerror})")
+    if not isinstance(data, dict) or not isinstance(data.get("exceptions"), list):
+        raise ValueError('must be an object with a list named "exceptions"')
+    out = []
+    for n, e in enumerate(data["exceptions"], 1):
+        where = f"entry {n}"
+        if not isinstance(e, dict):
+            raise ValueError(f"{where} must be an object with kind, box and reason")
+        kind = e.get("kind")
+        if kind not in L.KINDS:
+            raise ValueError(f"{where}: unknown kind {kind!r}; the kinds are listed in SKILL.md")
+        reason = e.get("reason")
+        if not isinstance(reason, str) or len(reason.strip()) < 5:
+            raise ValueError(f"{where}: a reason is required (say why the feature is intended)")
+        box = e.get("box")
+        if box is not None:
+            ok = (isinstance(box, list) and len(box) == 6
+                  and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in box))
+            if not ok or box[0] > box[3] or box[1] > box[4] or box[2] > box[5]:
+                raise ValueError(f"{where}: box must be six numbers x0, y0, z0, x1, y1, z1 with x0 <= x1, "
+                                 "y0 <= y1 and z0 <= z1")
+        out.append({"kind": kind, "box": box, "reason": reason.strip(), "used": 0})
+    return out
+
+
+def _covers(exc, f):
+    """Does this exception apply to this finding? A finding with a position needs a box that
+    contains its x and y and overlaps its height; a part-level finding takes an entry without one."""
+    if exc["kind"] != f["kind"]:
+        return False
+    if "x" not in f:
+        return exc["box"] is None
+    b = exc["box"]
+    return (b is not None and b[0] <= f["x"] <= b[3] and b[1] <= f["y"] <= b[4]
+            and f["z1"] >= b[2] and f["z0"] <= b[5])
+
+
+def apply_exceptions(findings, exceptions):
+    """Mark the findings an exception covers as waived. Only kinds that may be waived."""
+    import limits as L
+    for f in findings:
+        if f["severity"] not in ("fail", "warn") or not L.KINDS[f["kind"]]["waivable"]:
+            continue
+        for exc in exceptions:
+            if _covers(exc, f):
+                f["waived_from"], f["severity"], f["reason"] = f["severity"], "waived", exc["reason"]
+                exc["used"] += 1
+                break
+
+
 def _sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -156,8 +217,9 @@ def _finding_dict(f):
     return d
 
 
-def inspect_part(path):
-    """Everything known about one part, as the report dict. Never raises for a bad part."""
+def inspect_part(path, exceptions_path=None):
+    """Everything known about one part, as the report dict. Never raises for a bad part.
+    Exceptions are read from `exceptions_path`, or from <part>.exceptions.json if it exists."""
     import limits as L
     report = {
         "schema": REPORT_SCHEMA,
@@ -204,6 +266,17 @@ def inspect_part(path):
                     {"kind": "off_bed", "value": round(bb[2], 3), "what": "z_min_mm",
                      "severity": "warn", "waivable": True, "limit": 0.0})
 
+    exceptions, exc_error = [], None
+    exc_path = exceptions_path or os.path.splitext(path)[0] + ".exceptions.json"
+    if exceptions_path or os.path.isfile(exc_path):
+        try:
+            exceptions = load_exceptions(exc_path)
+        except ValueError as e:
+            exc_error = f"exceptions file {os.path.basename(exc_path)}: {e}"
+        report["exceptions"] = {"file": os.path.basename(exc_path), "entries": len(exceptions),
+                                "error": exc_error}
+    apply_exceptions(report["part_findings"], exceptions)
+
     for c in CHECKS:
         entry = {"name": c["name"], "status": "not_shipped", "findings": [], "error": None}
         if c["run"] is not None and solid is None:
@@ -212,6 +285,7 @@ def inspect_part(path):
         elif c["run"] is not None:
             try:
                 entry["findings"] = [_finding_dict(f) for f in c["run"](solid)]
+                apply_exceptions(entry["findings"], exceptions)
                 sev = {f["severity"] for f in entry["findings"]}
                 entry["status"] = "fail" if "fail" in sev else "warn" if "warn" in sev else "pass"
             except Exception:  # one crashing check must not hide the others; it is reported
@@ -219,9 +293,21 @@ def inspect_part(path):
                 entry["error"] = traceback.format_exc()
         report["checks"].append(entry)
 
-    verdict, quals = decide(report["checks"], report["part_error"])
+    if solid is not None:      # entries that could not or did not apply are shown, never dropped
+        for exc in exceptions:
+            if not L.KINDS[exc["kind"]]["waivable"]:
+                report["part_findings"].append({"kind": "exception_refused", "what": "note", "severity": "warn",
+                                                "waivable": False, "limit": None, "value": exc["kind"]})
+            elif not exc["used"]:
+                report["part_findings"].append({"kind": "exception_unused", "what": "note", "severity": "warn",
+                                                "waivable": False, "limit": None,
+                                                "value": f"{exc['kind']} ({exc['reason']})"})
+
+    verdict, quals = decide(report["checks"], report["part_error"] or exc_error)
     every = report["part_findings"] + [f for c in report["checks"] for f in c["findings"]]
-    counts = {s: sum(1 for f in every if f["severity"] == s) for s in ("fail", "warn", "info")}
+    counts = {s: sum(1 for f in every if f["severity"] == s) for s in ("fail", "warn", "info", "waived")}
+    if counts["waived"]:
+        quals.insert(0, f"with {counts['waived']} waiver{'s' if counts['waived'] != 1 else ''}")
     if counts["warn"]:
         quals.insert(0, f"with {counts['warn']} warning{'s' if counts['warn'] != 1 else ''}")
     ran = [c["name"] for c in report["checks"] if c["status"] in ("pass", "warn", "fail")]
@@ -237,6 +323,8 @@ def inspect_part(path):
 def _describe(f):
     import limits as L
     text = L.KINDS[f["kind"]]["text"]
+    if f["what"] == "note":
+        return f"{text}: {f['value']}"
     what = {"span_mm": "span {v} mm", "reach_mm": "sticks out {v} mm", "area_mm2": "area {v} mm2",
             "size_mm": "largest side {v} mm", "z_min_mm": "lowest point at z = {v} mm",
             "ratio": "{v} times as tall as wide", "angle_deg": "{v} degrees from the bed",
@@ -277,6 +365,11 @@ def format_text(report, verbose=False):
         for f in every:
             if f["severity"] == sev:
                 lines.append(f"  {label}  {_describe(f)}")
+    for f in every:
+        if f["severity"] == "waived":
+            lines.append(f"  waived  {_describe(f)}\n          reason: {f['reason']}")
+    if report.get("exceptions", {}).get("error"):
+        lines.append(f"  problem with the {report['exceptions']['error']}")
     info = [f for f in every if f["severity"] == "info"]
     if info and verbose:
         lines += [f"  info  {_describe(f)}" for f in info]
@@ -341,6 +434,7 @@ def main(argv=None):
     ap.add_argument("--out", help="report path (one part only)")
     ap.add_argument("--no-report", action="store_true", help="do not write report files")
     ap.add_argument("--verbose", action="store_true", help="list findings that are information only")
+    ap.add_argument("--exceptions", help="exceptions file (one part only; default <part>.exceptions.json)")
     ap.add_argument("--nozzle", type=float, default=None, help="nozzle width in mm (tested: 0.4)")
     ap.add_argument("--layer", type=float, default=None, help="layer height in mm (tested: 0.2)")
     ap.add_argument("--skill-tables", action="store_true", help="print the tables for SKILL.md")
@@ -360,6 +454,9 @@ def main(argv=None):
     if args.out and len(args.parts) > 1:
         print("--out takes one part; without it each part gets <part>.report.json", file=sys.stderr)
         return 2
+    if args.exceptions and len(args.parts) > 1:
+        print("--exceptions takes one part; without it each part uses <part>.exceptions.json", file=sys.stderr)
+        return 2
     missing = missing_packages()
     if missing:
         print(install_help(missing), file=sys.stderr)
@@ -374,7 +471,7 @@ def main(argv=None):
 
     verdicts = []
     for i, path in enumerate(args.parts):
-        report = inspect_part(path)
+        report = inspect_part(path, args.exceptions)
         verdicts.append(report["verdict"])
         if i:
             print()

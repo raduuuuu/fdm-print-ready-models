@@ -104,7 +104,24 @@ Several parts can be given at once. Each gets a text report and a `<part>.report
 - Repeat the verdict line to the user exactly as printed, including "checks not run". A pass that covers one check is not a print-ready part.
 - Never call a part print-ready on INCOMPLETE. Fix the export and run again.
 - Warnings are for a person to look at. Say what each one is.
-- Findings that are physical defects (too thin, floating, ledge, bridge over the hard limit) cannot be waived. A way to record intended exceptions for the judgment checks comes with those checks.
+- Findings that are physical defects (too thin, floating, ledge, bridge over the hard limit, thin posts) cannot be waived. Judgment findings can: see below.
+
+### Intended exceptions
+
+Some findings are judgment calls: a shallow ramp that is part of the function, an overhang that is accepted, a support that is easy to pull out. Record each one in `<part>.exceptions.json` next to the STL:
+
+```
+{"exceptions": [
+  {"kind": "slope_too_shallow", "box": [10, 0, 4, 40, 20, 9], "reason": "Loading ramp: the slope is the function"}
+]}
+```
+
+- `kind` is the finding's name from the table at the end. Only kinds marked "can be waived" are accepted. A physical defect is refused and still fails.
+- `box` is x0, y0, z0, x1, y1, z1 in the part's coordinates. It must contain the finding's x and y and overlap its height; take the position from the report. Keep the box tight: it waives every finding of that kind inside it.
+- `reason` says why the feature is meant to be that way. It is printed with the verdict.
+- Warnings about the whole part (not on the bed, very small) take an entry without a box.
+
+Do not add an exception to make a part pass. It records a feature that is intended, not a problem that was hard to fix. The verdict then reads "with N waivers" and lists each one with its reason: show that list to the user when you deliver. An entry that matches nothing produces a warning, so stale exceptions surface after a redesign. A file that cannot be read makes the run INCOMPLETE.
 
 ### What is automated in this version
 
@@ -197,6 +214,8 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `overhang_shallow` | warn | yes | Underside flatter than the design target |
 | `sharp_corner_horizontal` | info | no | Sharp inner corner along a horizontal edge |
 | `sharp_corner_vertical` | info | no | Sharp inner corners along vertical edges |
+| `exception_refused` | warn | no | Exception refused: this kind of finding cannot be waived |
+| `exception_unused` | warn | no | Exception matched no finding |
 | `off_bed` | warn | yes | Lowest point of the part is not at z = 0 |
 | `small_part` | warn | yes | Part is very small: check the export units |
 
