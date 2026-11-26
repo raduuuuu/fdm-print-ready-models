@@ -6,6 +6,8 @@ It is for people who build parts in code with an AI agent (Python with manifold3
 
 The rules come from designing, slicing and printing a set of wooden-railway station models in one filament colour. Each number in the skill says whether it was measured on a real print or slice, or is an estimate. [EVIDENCE.md](EVIDENCE.md) lists the measured ones with their source. [VALIDATION.md](VALIDATION.md) records how the checks did on 118 real parts.
 
+Pieces designed this way are used in [ChooChooCAD](https://woodentrain.world), a free planner that checks whether a wooden railway layout will close. Its [guide for contributors](https://github.com/raduuuuu/ChooChooCAD/blob/main/CONTRIBUTING.md#design-a-piece-to-print) says how a printed piece gets into its library.
+
 ## What you get
 
 - **The skill** ([SKILL.md](skills/fdm-print-ready-models/SKILL.md)): design rules for sizes, inner corners, overhangs and bridges, top surfaces, the first layer, and what happens when someone switches supports on. Plus how to check, package and report.
