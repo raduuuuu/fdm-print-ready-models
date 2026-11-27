@@ -18,12 +18,12 @@ part.stl
   warn  Wide ceiling bridge that may sag: span 12.4 mm, 11.72 mm wide (limit 12.0 mm)  at x 127.6, y 85.0, z 45.1
   warn  Support would stand on the model: area 26.5 mm2, 8.2 mm above the surface it would stand on  at x 43.0, y 6.2, z 16.1
   info  6 bridges within limits (longest 17.8 mm); --verbose lists them
-VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; with 2 warnings; checks not run: slicer)
+VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; with 2 warnings; geometry only: the slicer check did not run; still to do by hand: raised ports, assembly instructions)
 ```
 
 ## Status: version 0.3.0
 
-All six checks the skill describes are automated:
+The command runs these seven checks (the skill counts slope and overhang angle as one). Two more, raised ports and assembly instructions, are done by hand, and every passing verdict names them:
 
 | Check | What it finds |
 |---|---|

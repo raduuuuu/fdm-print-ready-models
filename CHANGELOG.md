@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Skill text only; the check command is unchanged.
+Skill text, and fixes to the check command from a review of the whole repository.
 
 - Glue is allowed where a joint without it would cost printability or strength. A glued joint keeps a locating feature and is named in the assembly instructions.
 - Connectors on a raised level: a port above the table needs something to hold up the end of the piece that plugs in. A check done by hand on every model.
@@ -10,6 +10,12 @@ Skill text only; the check command is unchanged.
 - Fixing a flaw: change the part that has it instead of adding a part, propose the smallest change, check before and after.
 - A female socket on a raised level gets a floor built into the part as the first choice.
 - A changed feature gets a close-up preview, before and after.
+- A passing verdict now ends with "still to do by hand: raised ports, assembly instructions".
+- New warning `overhang_narrow`: a sloped underside too narrow for the overhang rule that runs out further than a ledge may. Such an arm passed every check before. Ones under 6 mm2 are not reported; they printed cleanly.
+- Slicer check: a slice whose layers do not match the layer height in use is INCOMPLETE instead of being measured against the wrong layers. This catches an OrcaSlicer preset with another layer height.
+- Slicer check: travel moves sent as `G0` are followed, a straight bridge sent as several moves is measured as one, and arcs are followed round their centre.
+- A slicer alert can be waived with an entry without a box, as the skill says. It needed a box around the origin before.
+- `--out` refuses a path the command reads (the part, the exceptions file, a preset) instead of replacing that file with the report.
 
 ## 0.3.0 (2026-11-25)
 

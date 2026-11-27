@@ -149,21 +149,21 @@ Some findings are judgment calls: a shallow ramp that is part of the function, a
 - `kind` is the finding's name from the table at the end. Only kinds marked "can be waived" are accepted. A physical defect is refused and still fails.
 - `box` is x0, y0, z0, x1, y1, z1 in the part's coordinates. It must contain the finding's x and y and overlap its height; take the position from the report. Keep the box tight: it waives every finding of that kind inside it.
 - `reason` says why the feature is meant to be that way. It is printed with the verdict.
-- Warnings about the whole part (not on the bed, very small) take an entry without a box.
+- Warnings about the whole part (not on the bed, very small, a slicer alert) take an entry without a box. One entry waives every warning of that kind, so check the list of waivers after each redesign.
 
 Do not add an exception to make a part pass. It records a feature that is intended, not a problem that was hard to fix. The verdict then reads "with N waivers" and lists each one with its reason: show that list to the user when you deliver. An entry that matches nothing produces a warning, so stale exceptions surface after a redesign. A file that cannot be read makes the run INCOMPLETE.
 
 ### What is automated in this version
 
-The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs all six checks below; two more are done by hand and follow after them. Check 5 needs a slicer on the machine; without one the verdict says "geometry only" and you say so in your report. The numbers each check uses are in the limits table at the end.
+The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs all six checks below; two more are done by hand and follow after them. A passing verdict line ends with "still to do by hand" and names those two: the pass is not complete until you have done them. Check 5 needs a slicer on the machine; without one the verdict says "geometry only" and you say so in your report. The numbers each check uses are in the limits table at the end.
 
 1. **Layer check (automated).** Slices the part layer by layer. Fails features narrower than the minimum width, outlines that start in mid-air, flat ledges beyond the ledge limit, bridges over the hard limit, and bridge decks that stick out past their supports by more than the ledge limit. Warns on long ceilings.
 2. **Post check (automated).** Fails an overhang or bridge carried only by thin posts when the posts are tall and the overhang is large, and a free-standing column that is too tall for its width. Smaller overhangs on thin posts warn.
-3. **Slope and overhang check (automated).** Fails a top surface that is neither flat nor steep enough, unless it is a narrow fillet band or a small patch. Fails a sloped underside flatter than the overhang limit that runs out further than a ledge may, and warns between that limit and the design target. Flat undersides are bridges and ledges and belong to check 1.
+3. **Slope and overhang check (automated).** Fails a top surface that is neither flat nor steep enough, unless it is a narrow fillet band or a small patch. Fails a sloped underside flatter than the overhang limit that runs out further than a ledge may, and warns between that limit and the design target. A sloped underside too narrow for that rule (a rib, a thin arm) warns when it runs out further than a ledge may and is larger than 6 mm2; smaller ones printed cleanly. Look at each such warning: the rule for narrow undersides is an estimate. Flat undersides are bridges and ledges and belong to check 1.
 4. **Inner corner check (automated, report only).** Lists the sharp inner corners along horizontal edges and counts the vertical ones. It never fails a part: go through the list. Every horizontal one should have a fillet (or a 45 degree chamfer where it faces down). Say which ones were left sharp and why.
 5. **Real slicer (automated when a slicer is installed).** Slices the part with no supports and 3 walls, measures the longest bridging line over air and how far any overhang wall is printed out in the air, and fails either beyond its limit. With PrusaSlicer it also reads the slicer's own alerts and reports each as a warning: the goal is no alert. With 2 walls some alerts come back (measured).
    - PrusaSlicer is used when it is installed and needs nothing but the STL.
-   - OrcaSlicer needs three preset files exported from it: `--orca-presets machine.json process.json filament.json`. Supports are switched off in a copy of the process preset. Its alerts are not read; only its bridges and walls are measured.
+   - OrcaSlicer needs three preset files exported from it: `--orca-presets machine.json process.json filament.json`. Supports are switched off in a copy of the process preset. Its alerts are not read; only its bridges and walls are measured. The preset's layer height and first layer height must equal the layer height the check uses (0.2 mm, or `--layer`); otherwise the run is INCOMPLETE and says so.
    - `--slicer none` skips the check.
 6. **Support prediction (automated).** Lists every flat underside wide enough to get a support when supports are switched on. On the build plate: information. On the model: a warning. On the model where no gap wide enough for a tool leads to it: fails, because the support cannot be pulled out. It looks sideways only, so a room that is open from above still counts as closed. Patches in places a hand cannot reach are designed away.
 
@@ -173,6 +173,7 @@ PrusaSlicer bridges floating regions silently and OrcaSlicer reports them, so do
 
 ### Known gaps in the automated checks
 - The slicer measurement reads the wall a slicer prints around a flat ledge as a bridge, because that wall is held at both ends. A ledge that is too deep is failed by check 1, not by check 5.
+- A bridging line that curves is measured piece by piece, so a long curved bridge can read short. Straight bridges are measured whole, however the slicer splits them.
 - Other setups are extrapolated, not measured. `--nozzle 0.6 --layer 0.3` scales the limits that depend on the nozzle and reports their findings as warnings labelled "scaled, not measured". Lengths such as the bridge and ledge limits do not scale and keep their verdict. See section 7.
 
 ### Checks the command does not run
@@ -253,6 +254,7 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | `slope_too_shallow` | fail | yes | Top surface too shallow to print as a closed skin |
 | `overhang_too_flat` | fail | yes | Underside too flat to print without support |
 | `overhang_shallow` | warn | yes | Underside flatter than the design target |
+| `overhang_narrow` | warn | yes | Narrow sloped underside that runs out far |
 | `sharp_corner_horizontal` | info | no | Sharp inner corner along a horizontal edge |
 | `sharp_corner_vertical` | info | no | Sharp inner corners along vertical edges |
 | `slicer_bridge_too_long` | fail | no | Slicer: bridging line over air longer than the hard limit |
@@ -277,5 +279,7 @@ For a 0.4 mm nozzle and 0.2 mm layers.
 | corner | yes | Sharp inner corners (report only) |
 | support | yes | Where supports would go, and whether they can be removed |
 | slicer | yes | A real slicer run: its alerts, bridges and overhang walls. Needs PrusaSlicer or OrcaSlicer |
+| raised ports | no, by hand | What holds up the end of a piece plugged into a connector above the table |
+| assembly instructions | no, by hand | Instructions for every part that joins another, or the line "no assembly" |
 
 <!-- end of generated tables -->

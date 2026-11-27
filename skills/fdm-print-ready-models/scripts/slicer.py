@@ -133,12 +133,28 @@ def slice_orca(exe, stl, workdir, presets):
     return (os.path.join(outdir, made[0]) if made else os.path.join(outdir, "missing.gcode")), None
 
 
-_NUM = re.compile(r"([XYZE])(-?\d*\.?\d+)")
+_NUM = re.compile(r"([XYZEIJ])(-?\d*\.?\d+)")
 
 
-def parse_gcode(path):
+def _arc(x, y, nx, ny, i, j, clockwise):
+    """Points along a G2/G3 arc from (x, y) to (nx, ny) about (x + i, y + j), about 1 mm apart.
+    The same start and end is a full circle."""
+    cx, cy, r = x + i, y + j, math.hypot(i, j)
+    a0, a1 = math.atan2(y - cy, x - cx), math.atan2(ny - cy, nx - cx)
+    sweep = (a0 - a1) if clockwise else (a1 - a0)
+    if sweep <= 1e-9:
+        sweep += 2 * math.pi
+    n = min(720, max(1, math.ceil(r * sweep)))
+    turn = -sweep if clockwise else sweep
+    pts = [(cx + r * math.cos(a0 + turn * k / n), cy + r * math.sin(a0 + turn * k / n)) for k in range(1, n)]
+    return pts + [(nx, ny)]
+
+
+def parse_gcode(path, zs=None):
     """(slicer name, version, segments). A segment is an extruding move:
-    (feature, z, x0, y0, x1, y1). Understands PrusaSlicer (;TYPE:) and OrcaSlicer (; FEATURE:)."""
+    (feature, z, x0, y0, x1, y1). Understands PrusaSlicer (;TYPE:) and OrcaSlicer (; FEATURE:).
+    Travel moves (G0, or G1 without extrusion) move the position; arcs with a centre are cut into
+    short chords. `zs`, if given, receives the height of every layer."""
     if not os.path.isfile(path):
         raise SlicerError("could not confirm the slice ran: no G-code was written")
     name = version = None
@@ -157,19 +173,58 @@ def parse_gcode(path):
                 elif line.startswith(";Z:") or line.startswith("; Z_HEIGHT: "):
                     z = float(line.split(":")[1])
                     layers += 1
+                    if zs is not None:
+                        zs.append(z)
                 continue
             if line.startswith("M82"):
                 raise SlicerError("the G-code uses absolute extrusion; switch on relative extruder distances")
-            if not line.startswith(("G1 ", "G2 ", "G3 ")):
+            if not line.startswith(("G0 ", "G1 ", "G2 ", "G3 ")):
                 continue
             v = dict(_NUM.findall(line.split(";")[0]))
             nx, ny = float(v.get("X", x)), float(v.get("Y", y))
-            if "E" in v and float(v["E"]) > 0 and (nx != x or ny != y) and feature in (BRIDGE | OUTER):
-                segs.append((feature, z, x, y, nx, ny))     # an arc is measured along its chord
+            if "E" in v and float(v["E"]) > 0 and feature in (BRIDGE | OUTER):
+                if line[1] in "23" and ("I" in v or "J" in v):
+                    pts = _arc(x, y, nx, ny, float(v.get("I", 0)), float(v.get("J", 0)), line[1] == "2")
+                else:
+                    pts = [(nx, ny)]         # a straight move, or an arc given by radius: its chord
+                px, py = x, y
+                for qx, qy in pts:
+                    if qx != px or qy != py:
+                        segs.append((feature, z, px, py, qx, qy))
+                    px, py = qx, qy
             x, y = nx, ny
     if name is None or layers == 0 or not segs:
         raise SlicerError("could not confirm the slice ran: the G-code has no layers or no slicer header")
     return name, version, segs
+
+
+def check_layers(zs):
+    """The G-code must have the layers the part is compared against. A preset with another layer
+    height would be measured against the wrong layer below, so the run is not trusted."""
+    if max(abs(z / L.LAYER - round(z / L.LAYER)) for z in zs) > 0.25:
+        steps = sorted({round(b - a, 3) for a, b in zip(zs, zs[1:]) if b > a})[:3]
+        raise SlicerError(f"the slicer's layers do not match the {L.LAYER:g} mm layers the check measures "
+                          f"against (first layer at {zs[0]:g} mm, then steps of "
+                          f"{', '.join(f'{s:g}' for s in steps) or 'none'} mm): pass --layer with the "
+                          f"preset's layer height, or set the preset's layer height and first layer "
+                          f"height to {L.LAYER:g} mm")
+
+
+def _join_bridges(segs):
+    """Bridging moves that carry on in a straight line are one line. A slicer may send one long
+    bridge as several moves, and each piece alone would look short."""
+    out = []
+    for s in segs:
+        p = out[-1] if out else None
+        if p and s[0] in BRIDGE and p[0] in BRIDGE and p[1] == s[1] \
+                and math.hypot(p[4] - s[2], p[5] - s[3]) < 0.05:
+            ax, ay, bx, by = p[4] - p[2], p[5] - p[3], s[4] - s[2], s[5] - s[3]
+            la, lb = math.hypot(ax, ay), math.hypot(bx, by)
+            if la > 0 and lb > 0 and ax * bx + ay * by > 0 and abs(ax * by - ay * bx) < 0.05 * la * lb:
+                out[-1] = (p[0], p[1], p[2], p[3], s[4], s[5])
+                continue
+        out.append(s)
+    return out
 
 
 def _shift(m, segs):
@@ -229,7 +284,7 @@ def measure(m, segs):
             walls.append((round(max(d), 1), round(length, 1), round(pts[k][0], 1), round(pts[k][1], 1), round(z0 + z, 1)))
 
     run = None
-    for feature, z, ax, ay, bx, by in segs:
+    for feature, z, ax, ay, bx, by in _join_bridges(segs):
         if z < 1.5 * L.LAYER or feature not in (BRIDGE | OVERHANG):
             continue
         a, b = (ax - dx, ay - dy), (bx - dx, by - dy)
@@ -277,7 +332,9 @@ def run(m, stl, want="auto", path=None, orca_presets=None, info=None):
             gcode, alerts = slice_prusa(exe, stl, work)
         else:
             gcode, alerts = slice_orca(exe, stl, work, orca_presets)
-        name, version, segs = parse_gcode(gcode)
+        zs = []
+        name, version, segs = parse_gcode(gcode, zs)
+    check_layers(zs)
     if info is not None:
         info.update({"name": name, "version": version})
     spans, walls = measure(m, segs)

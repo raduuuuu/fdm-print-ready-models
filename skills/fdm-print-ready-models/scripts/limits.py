@@ -63,6 +63,9 @@ SLOPE_MIN_AREA = 150.0    # mm2; a shallow top surface smaller than this is not 
 #                           of the original slope check; two 38 mm2 patches at 23 degrees printed cleanly
 RUN_TOL = 0.25            # mm; how far past max_ledge a sloped underside must run to be reported.
 #                           The run is estimated from area and outline, so a 2.0 mm step reads 2.0x
+NARROW_UNDERSIDE_MIN_AREA = 6.0   # mm2; a sloped underside too narrow for the overhang-angle rule is
+#                           still reported when it runs out past max_ledge and is at least this
+#                           large. Narrow ones up to 5.8 mm2 printed cleanly on three models
 SHARP_ANGLE = 60.0        # degrees between two faces at an inner edge for it to count as sharp
 CORNER_LIST_MAX = 200     # the corner report lists at most this many horizontal corners, longest first
 
@@ -151,6 +154,8 @@ KINDS = {
                         "text": "Underside too flat to print without support"},
     "overhang_shallow": {"severity": "warn", "waivable": True, "limit": "overhang_target_angle",
                         "text": "Underside flatter than the design target"},
+    "overhang_narrow": {"severity": "warn", "waivable": True, "limit": "overhang_fail_angle",
+                        "text": "Narrow sloped underside that runs out far"},
     "sharp_corner_horizontal": {"severity": "info", "waivable": False, "limit": "corner_min_edge",
                         "text": "Sharp inner corner along a horizontal edge"},
     "sharp_corner_vertical": {"severity": "info", "waivable": False, "limit": "corner_min_edge",
@@ -188,6 +193,7 @@ SCALING = {
     "roof_min_angle": "none", "fillet_band": "none", "overhang_target_angle": "none",
     "overhang_fail_angle": "none", "corner_min_edge": "none",
     "FLAT_ANGLE": "none", "ANGLE_MARGIN": "none", "SURFACE_MIN_AREA": "none", "SLOPE_MIN_AREA": "none", "RUN_TOL": "none", "SHARP_ANGLE": "none",
+    "NARROW_UNDERSIDE_MIN_AREA": "none",
     "CORNER_LIST_MAX": "none",
     "SLICER_TIMEOUT": "none", "SLICER_MIN_RUN": "none", "SLICER_MIN_LINE": "none", "SLICER_LEAN": "none",
     "SLICER_END_HELD": "none", "SLICER_WALL_MIN": "none",

@@ -7,6 +7,8 @@ All angles are measured from the bed: 0 degrees is flat, 90 degrees is a vertica
   overhang_too_flat   an underside flatter than overhang_fail_angle that runs out further than a
                       ledge may
   overhang_shallow    the same between overhang_fail_angle and overhang_target_angle (a warning)
+  overhang_narrow     an underside flatter than overhang_fail_angle that is too narrow for the
+                      rule above but runs out further than a ledge may (a warning)
   sharp_corner_horizontal, sharp_corner_vertical
                       sharp inner corners. Reported for a person to judge; never a failure.
 
@@ -84,6 +86,26 @@ def _where(mesh, faces):
     return round(float(c[0]), 1), round(float(c[1]), 1), round(float(z.min()), 2), round(float(z.max()), 2)
 
 
+def _run_out(mesh, faces, ang):
+    """How far a sloped underside runs out past its foot, in plan.
+
+    A flat-sided underside leans one way: its run is its extent along that direction. This is
+    its real reach however narrow it is; _band_width reads a 1.6 mm wide arm that runs 10 mm
+    out as 1.4 mm. An underside that leans several ways (a cone, the two sides of an arch) has
+    no single direction: its run is its height over the tangent of its mean angle.
+    """
+    w = mesh.area_faces[faces]
+    lean = mesh.face_normals[faces][:, :2]
+    lean = lean / np.linalg.norm(lean, axis=1)[:, None]
+    mean = (lean * w[:, None]).sum(0) / w.sum()
+    v = mesh.vertices[np.unique(mesh.faces[faces])]
+    if np.linalg.norm(mean) > 0.9:
+        along = v[:, :2] @ (mean / np.linalg.norm(mean))
+        return float(along.max() - along.min())
+    angle = np.radians(float((ang[faces] * w).sum() / w.sum()))
+    return float((v[:, 2].max() - v[:, 2].min()) / np.tan(angle))
+
+
 def run_slopes(m):
     """Top surfaces that are neither flat nor steep enough, as regions wider than a fillet."""
     mesh = mesh_of(m)
@@ -111,13 +133,24 @@ def run_overhangs(m):
     out = []
     bands = (("overhang_too_flat", L.FLAT_ANGLE, L.value("overhang_fail_angle")),
              ("overhang_shallow", L.value("overhang_fail_angle"), L.value("overhang_target_angle")))
-    for kind, lo, hi in bands:
+    for band, lo, hi in bands:
         sel = down & (ang > lo) & (ang < hi - L.ANGLE_MARGIN)
         for faces in _regions(mesh, sel):
+            kind = band
             run, plan_area = _band_width(mesh, faces, flat=True)
-            if run <= L.value("max_ledge") + L.RUN_TOL or plan_area < L.SURFACE_MIN_AREA:
+            if plan_area < L.SURFACE_MIN_AREA:
                 continue
             w = mesh.area_faces[faces]
+            limit = L.value("max_ledge") + L.RUN_TOL
+            if run <= limit:
+                # Too narrow for the rule above. Its real reach still counts once it is larger
+                # than the narrow undersides that are known to print.
+                if kind != "overhang_too_flat" or float(w.sum()) < L.NARROW_UNDERSIDE_MIN_AREA:
+                    continue
+                run = _run_out(mesh, faces, ang)
+                if run <= limit:
+                    continue
+                kind = "overhang_narrow"
             flattest = float(ang[faces].min())
             x, y, z0, z1 = _where(mesh, faces)
             out.append(Finding(kind, round(flattest, 1), "angle_deg", x, y, z0, z1,

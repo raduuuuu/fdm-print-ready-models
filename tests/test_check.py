@@ -16,6 +16,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILL = os.path.join(REPO, "skills", "fdm-print-ready-models", "SKILL.md")
 CHECK_PY = os.path.join(REPO, "skills", "fdm-print-ready-models", "scripts", "check.py")
 NOT_RUN = "geometry only: the slicer check did not run"
+BY_HAND = "still to do by hand: raised ports, assembly instructions"
 
 
 def box(x0, x1, y0, y1, z0, z1):
@@ -78,7 +79,7 @@ def test_good_part_passes_and_says_what_did_not_run(tmp_path, capsys):
     p = stl(tmp_path, GOOD)
     code, out, _ = run([p], capsys)
     assert code == 0
-    assert f"VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; {NOT_RUN})" in out
+    assert f"VERDICT: PASS (layer, post, slope, overhang angle, corner and support checks only; {NOT_RUN}; {BY_HAND})" in out
     assert "the slicer check did not run: no slicer found" in out
 
 
@@ -165,6 +166,24 @@ def test_a_crashing_check_is_reported_not_swallowed(tmp_path, capsys, monkeypatc
     assert code == 2 and "VERDICT: INCOMPLETE (crashed: layer" in out
     assert "the layer check crashed: RuntimeError: simulated crash" in out
     assert "Traceback" in r["checks"][0]["error"]
+
+
+def test_a_pass_names_the_checks_done_by_hand_and_a_failure_does_not():
+    by_hand = [{"name": "layer", "status": "pass"}, {"name": "raised ports", "status": "by_hand"}]
+    assert check.decide(by_hand) == ("PASS", ["still to do by hand: raised ports"])
+    assert check.decide([{"name": "layer", "status": "fail"}] + by_hand[1:]) == ("FAIL", [])
+
+
+def test_out_may_not_name_a_file_the_command_reads(tmp_path, capsys):
+    p = stl(tmp_path, GOOD)
+    before = open(p, "rb").read()
+    code, out, err = run([p, "--out", p], capsys)
+    assert code == 2 and "--out names a file the command reads" in err and "VERDICT" not in out
+    assert open(p, "rb").read() == before
+    exc = tmp_path / "part.exceptions.json"
+    exc.write_text('{"exceptions": []}')
+    code, _, err = run([p, "--out", str(exc)], capsys)
+    assert code == 2 and exc.read_text() == '{"exceptions": []}'
 
 
 def test_unwritable_report_still_gives_the_verdict(tmp_path, capsys):
