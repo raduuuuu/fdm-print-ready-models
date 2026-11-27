@@ -7,6 +7,9 @@ Skill text only; the check command is unchanged.
 - Glue is allowed where a joint without it would cost printability or strength. A glued joint keeps a locating feature and is named in the assembly instructions.
 - Connectors on a raised level: a port above the table needs something to hold up the end of the piece that plugs in. A check done by hand on every model.
 - Assembly instructions for every part that joins another, or the line "no assembly". Also checked by hand.
+- Fixing a flaw: change the part that has it instead of adding a part, propose the smallest change, check before and after.
+- A female socket on a raised level gets a floor built into the part as the first choice.
+- A changed feature gets a close-up preview, before and after.
 
 ## 0.3.0 (2026-11-25)
 

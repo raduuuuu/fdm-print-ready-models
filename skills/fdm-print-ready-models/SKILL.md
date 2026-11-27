@@ -20,10 +20,17 @@ Rules learned from designing, slicing and printing a set of wooden-railway stati
 3. If a model has a multi-colour and a single-colour version, keep one script with a flag, and put what the single-colour build does differently next to the feature it changes.
 4. Export every part in its print orientation, flat side on the bed, in millimetres.
 5. Run the checks in section 4 on every exported part. Fix the design, not the slicer settings.
-6. Render a preview picture and look at it before delivering.
+6. Render a preview picture and look at it before delivering. When a feature was added or changed, also render a close-up of that feature, before and after, with the scenery around it cut away and the changed surface in a contrasting colour. A picture of the whole model does not show a 1.6 mm floor.
 7. Package for the slicer the recipient uses (section 5).
 
 When a script change should not alter the geometry (a refactor), prove it by comparing the volume of old and new parts.
+
+### Fixing a flaw
+- Fix a flaw in the part that has it. Do not work around it with an extra part (a bracket, a plate to glue on, a frame to stand next to the model) unless the user asks for one.
+- Propose the smallest change that does it, and say what it costs: a height, a clearance, a part that has to be printed again.
+- When a change to one part moves a surface another part sits on, change both and say that they must be printed together.
+- Run the checks on the part before and after the change and report both, so a finding that was already there is not blamed on the fix, and a new one is not missed.
+- If only the exported parts exist and not the script that made them, edit the parts with a script that is kept next to them, keep the originals, and say that the source was not changed.
 
 ## 2. Design rules
 
@@ -88,9 +95,12 @@ Design for no supports, then check what happens with tree supports on (30 degree
 ### Connectors on a raised level
 A peg-and-socket connector, as on wooden-railway track, only stops two pieces pulling apart. It carries no weight.
 - Wherever a level above the table ends in a connector port, something must hold up the end of the piece that plugs in. Check every raised port, female sockets above all: the neighbour's peg lies in the socket and its end hangs free.
-- Either the model carries it, with a pier or shelf that reaches under the joint far enough for the neighbour's end to rest on, or the space under the joint is kept clear for a standard pillar and the assembly instructions say that one goes there.
+- First choice for a female socket: give it a floor. Make the part thicker on its underside and stop the socket on that layer, so the neighbour's peg rests on it. 1.6 mm (8 layers) is a starting point. If the part prints with that underside on the bed, the floor is the first layers and costs nothing to print.
+- Take the extra thickness from below, so the top of the track stays at its height: lower whatever carries the part by the same amount, and state the headroom lost underneath.
+- A socket floor holds a neighbour that has its own peg. With a loose double-ended connector and a neighbour whose socket is open, the neighbour can still drop around it: say so in the assembly instructions.
+- Where a floor is not possible, the part carries the neighbour with a pier or shelf that reaches under the joint, or the space under the joint is kept clear for a standard pillar and the assembly instructions say that one goes there.
 - Put the port at a height the neighbouring pieces can reach, and state that height.
-- Where this comes from: a two-level station whose upper tracks ended in sockets flush with the edge of the slab. The next track piece had nothing under its end.
+- Where this comes from: a two-level station whose upper tracks ended in open sockets flush with the edge of the slab. The next track piece had nothing under its end. The fix was a 1.6 mm floor under each socket, built into the slab; it has passed the checks and is not printed yet.
 
 ### Assembly instructions
 - Every part that joins another part, or needs anything done after printing, comes with assembly instructions: the order of assembly, which pin, peg or face goes where, whether each joint is plugged, pressed or glued, supports to remove, and what stands under each raised port.
@@ -169,7 +179,7 @@ PrusaSlicer bridges floating regions silently and OrcaSlicer reports them, so do
 
 The command sees one part at a time and knows nothing about how parts join. Do these two by hand on every model, and report them with the verdicts. A model that fails either is not ready, whatever the command says.
 
-- **Raised ports.** List every connector port whose underside is above the table. For each one, name what carries the end of the piece that plugs in: a pier or shelf of the model, or a standard pillar named in the assembly instructions with clear space for it. A port with no answer fails.
+- **Raised ports.** List every connector port whose underside is above the table. For each one, name what carries the end of the piece that plugs in: a socket floor, a pier or shelf of the model, or a standard pillar named in the assembly instructions with clear space for it. A port with no answer fails.
 - **Assembly instructions.** Go through the list of parts. Each one has assembly instructions or the line "no assembly", and every glued joint and every raised port appears in them.
 
 ## 5. Slicer projects and delivery
