@@ -73,9 +73,29 @@ Design for no supports, then check what happens with tree supports on (30 degree
 - Place a repeated detail (a clock face, a sign) by rotating it only. Mirroring a copy flips its content. If a whole part is mirrored, build the detail mirrored first.
 - Repeated details share one helper and one set of constants.
 
-## 3. Mating parts
+## 3. Mating parts and assembly
+
+### Fit
 - Print a small fit-test piece for every connector before the full part and include it in the delivery.
 - Keep clearances in named constants so a failed fit test is a one-line fix.
+
+### Glue
+- Glue is allowed. Use it where a joint without glue would cost printability or strength: a part split so that both halves print flat, a small decoration with no room for a pin, a joint a child will pull on.
+- Where a pin, peg or seat holds just as well, prefer it, and keep joints that are meant to come apart again (a lift-off roof, a part that packs flat) free of glue.
+- A glued joint still gets a locating feature (a pin, a recess or a lip) so the part cannot be placed wrong, and flat faces that touch.
+- Every glued joint is named in the assembly instructions, with whether the glue is required or optional.
+
+### Connectors on a raised level
+A peg-and-socket connector, as on wooden-railway track, only stops two pieces pulling apart. It carries no weight.
+- Wherever a level above the table ends in a connector port, something must hold up the end of the piece that plugs in. Check every raised port, female sockets above all: the neighbour's peg lies in the socket and its end hangs free.
+- Either the model carries it, with a pier or shelf that reaches under the joint far enough for the neighbour's end to rest on, or the space under the joint is kept clear for a standard pillar and the assembly instructions say that one goes there.
+- Put the port at a height the neighbouring pieces can reach, and state that height.
+- Where this comes from: a two-level station whose upper tracks ended in sockets flush with the edge of the slab. The next track piece had nothing under its end.
+
+### Assembly instructions
+- Every part that joins another part, or needs anything done after printing, comes with assembly instructions: the order of assembly, which pin, peg or face goes where, whether each joint is plugged, pressed or glued, supports to remove, and what stands under each raised port.
+- A part that is used as printed says so in one line ("no assembly"), so that a missing instruction is not mistaken for none being needed.
+- Write them in the read-me, one entry per part, next to a picture of the assembled model.
 
 ## 4. Checks
 
@@ -125,7 +145,7 @@ Do not add an exception to make a part pass. It records a feature that is intend
 
 ### What is automated in this version
 
-The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs all six checks. Check 5 needs a slicer on the machine; without one the verdict says "geometry only" and you say so in your report. The numbers each check uses are in the limits table at the end.
+The tables at the end of this file are generated from the code and are the authority on limits and on which checks run. In this version the command runs all six checks below; two more are done by hand and follow after them. Check 5 needs a slicer on the machine; without one the verdict says "geometry only" and you say so in your report. The numbers each check uses are in the limits table at the end.
 
 1. **Layer check (automated).** Slices the part layer by layer. Fails features narrower than the minimum width, outlines that start in mid-air, flat ledges beyond the ledge limit, bridges over the hard limit, and bridge decks that stick out past their supports by more than the ledge limit. Warns on long ceilings.
 2. **Post check (automated).** Fails an overhang or bridge carried only by thin posts when the posts are tall and the overhang is large, and a free-standing column that is too tall for its width. Smaller overhangs on thin posts warn.
@@ -145,16 +165,23 @@ PrusaSlicer bridges floating regions silently and OrcaSlicer reports them, so do
 - The slicer measurement reads the wall a slicer prints around a flat ledge as a bridge, because that wall is held at both ends. A ledge that is too deep is failed by check 1, not by check 5.
 - Other setups are extrapolated, not measured. `--nozzle 0.6 --layer 0.3` scales the limits that depend on the nozzle and reports their findings as warnings labelled "scaled, not measured". Lengths such as the bridge and ledge limits do not scale and keep their verdict. See section 7.
 
+### Checks the command does not run
+
+The command sees one part at a time and knows nothing about how parts join. Do these two by hand on every model, and report them with the verdicts. A model that fails either is not ready, whatever the command says.
+
+- **Raised ports.** List every connector port whose underside is above the table. For each one, name what carries the end of the piece that plugs in: a pier or shelf of the model, or a standard pillar named in the assembly instructions with clear space for it. A port with no answer fails.
+- **Assembly instructions.** Go through the list of parts. Each one has assembly instructions or the line "no assembly", and every glued joint and every raised port appears in them.
+
 ## 5. Slicer projects and delivery
 - Ask which slicer and printer the recipient uses and start from that printer's default profile.
 - Deliver one multi-plate project file (3MF) per model, not one file per plate.
 - Parts on a plate stand 25 mm apart. At 6 mm, support trees ran into the neighbouring part and OrcaSlicer refused to slice.
-- Include the plain STLs as well, a fit-test piece, and a short read-me: plates, orientation, walls, whether a brim is needed, known exceptions.
+- Include the plain STLs as well, a fit-test piece, and a short read-me: plates, orientation, walls, whether a brim is needed, known exceptions, and the assembly instructions for every part (section 3).
 - MakerWorld accepts print profiles only from a 3MF saved by Bambu Studio with a Bambu Lab printer selected, and expects photos of a real print. An OrcaSlicer 3MF is rejected; plain STLs upload as model files. (As of November 2026.)
 - Keep email attachments small: split large deliveries into several zip files.
 
 ## 6. Reporting
-Say what was checked and what was not printed. Give the verdict line of every part as printed, say which checks were automated and which you did by hand, and state plainly which rules are measured on a real print or slice and which are estimates. List any alert or warning that remains and the feature that causes it, or say that the feature was not pinned down.
+Say what was checked and what was not printed. Give the verdict line of every part as printed, say which checks were automated and which you did by hand, and state plainly which rules are measured on a real print or slice and which are estimates. List any alert or warning that remains and the feature that causes it, or say that the feature was not pinned down. List each raised port with what carries it, each glued joint, and which parts have assembly instructions and which need none.
 
 ## 7. Other printers and materials
 
