@@ -10,7 +10,7 @@ Pieces designed this way are used in [ChooChooCAD](https://woodentrain.world), a
 
 ## What you get
 
-- **The skill** ([SKILL.md](skills/fdm-print-ready-models/SKILL.md)): design rules for sizes, inner corners, overhangs and bridges, top surfaces, the first layer, and what happens when someone switches supports on. Plus how to check, package and report.
+- **The skill** ([SKILL.md](skills/fdm-print-ready-models/SKILL.md)): design rules for sizes, inner corners, overhangs and bridges, top surfaces, the first layer, and what happens when someone switches supports on. Also mating parts: when glue is acceptable, what must hold up a connector on a raised level, and assembly instructions for every part. Plus how to check, package and report.
 - **The check command**: one command per part, one verdict.
 
 ```

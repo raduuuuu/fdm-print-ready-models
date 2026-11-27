@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+Skill text only; the check command is unchanged.
+
+- Glue is allowed where a joint without it would cost printability or strength. A glued joint keeps a locating feature and is named in the assembly instructions.
+- Connectors on a raised level: a port above the table needs something to hold up the end of the piece that plugs in. A check done by hand on every model.
+- Assembly instructions for every part that joins another, or the line "no assembly". Also checked by hand.
+
 ## 0.3.0 (2026-11-25)
 
 All six checks are automated.
