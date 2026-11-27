@@ -19,8 +19,8 @@ because the scaled numbers were never measured. Lengths such as bridge limits do
 Verdict and exit code:
     FAIL        1   at least one finding that makes the part not print-ready
     INCOMPLETE  2   the part could not be read, or a check crashed, so there is no full answer
-    PASS        0   nothing failed. The verdict line names any warnings and any check that did
-                    not run; a pass never hides either.
+    PASS        0   nothing failed. The verdict line names any warnings, any check that did
+                    not run and the checks that are done by hand; a pass never hides them.
 A failure outranks an incomplete run: FAIL is reported even if another check crashed.
 
 This file owns the verdict and the report. The checks only measure (layers.py); limits.py owns
@@ -61,7 +61,8 @@ def install_help(missing):
 
 
 # The checks this tool knows about, in the order SKILL.md describes them. `run` is None for a
-# check that has not shipped yet; such a check is named on every verdict line.
+# check the command does not do: one that has not shipped yet, or one marked `by_hand` because
+# it needs to know how parts join. Both are named on every verdict line.
 def _run_layers(solid, ctx):
     import layers
     return layers.run(solid)
@@ -108,12 +109,16 @@ CHECKS = [
     {"name": "support", "run": _run_supports, "text": "Where supports would go, and whether they can be removed"},
     {"name": "slicer", "run": _run_slicer,
      "text": "A real slicer run: its alerts, bridges and overhang walls. Needs PrusaSlicer or OrcaSlicer"},
+    {"name": "raised ports", "run": None, "by_hand": True,
+     "text": "What holds up the end of a piece plugged into a connector above the table"},
+    {"name": "assembly instructions", "run": None, "by_hand": True,
+     "text": "Instructions for every part that joins another, or the line \"no assembly\""},
 ]
 
 
 def decide(check_results, part_error=None):
     """The verdict for one part. `check_results` is a list of {"name", "status"} with status in
-    pass | warn | fail | error | not_shipped | skipped. Returns (verdict, qualifiers)."""
+    pass | warn | fail | error | not_shipped | by_hand | skipped. Returns (verdict, qualifiers)."""
     statuses = [c["status"] for c in check_results]
     if "fail" in statuses:
         verdict = "FAIL"
@@ -131,6 +136,9 @@ def decide(check_results, part_error=None):
     not_run = [c["name"] for c in check_results if c["status"] == "not_shipped"]
     if not_run:
         quals.append("checks not run: " + ", ".join(not_run))
+    by_hand = [c["name"] for c in check_results if c["status"] == "by_hand"]
+    if by_hand and verdict == "PASS":     # a pass is not the whole answer while these are open
+        quals.append("still to do by hand: " + ", ".join(by_hand))
     return verdict, quals
 
 
@@ -171,10 +179,11 @@ def load_exceptions(path):
 
 def _covers(exc, f):
     """Does this exception apply to this finding? A finding with a position needs a box that
-    contains its x and y and overlaps its height; a part-level finding takes an entry without one."""
+    contains its x and y and overlaps its height; a part-level finding takes an entry without one.
+    A note (a slicer alert, for one) is about the whole part even though it carries x = 0."""
     if exc["kind"] != f["kind"]:
         return False
-    if "x" not in f:
+    if "x" not in f or f.get("what") == "note":
         return exc["box"] is None
     b = exc["box"]
     return (b is not None and b[0] <= f["x"] <= b[3] and b[1] <= f["y"] <= b[4]
@@ -289,7 +298,8 @@ def inspect_part(path, exceptions_path=None, slicer="auto", slicer_path=None, or
     ctx = {"path": path, "slicer": slicer, "slicer_path": slicer_path, "orca_presets": orca_presets,
            "slicer_info": {}}
     for c in CHECKS:
-        entry = {"name": c["name"], "status": "not_shipped", "findings": [], "error": None}
+        entry = {"name": c["name"], "status": "by_hand" if c.get("by_hand") else "not_shipped",
+                 "findings": [], "error": None}
         if c["run"] is not None and solid is None:
             entry["status"] = "error"
             entry["error"] = "not run: the part could not be read"
@@ -329,7 +339,7 @@ def inspect_part(path, exceptions_path=None, slicer="auto", slicer_path=None, or
     ran = [c["name"] for c in report["checks"] if c["status"] in ("pass", "warn", "fail")]
     if not L.tested():
         quals.insert(0, f"{L.NOZZLE:g} mm nozzle and {L.LAYER:g} mm layers: scaled limits, not measured")
-    if verdict == "PASS" and len(ran) < len(CHECKS):
+    if verdict == "PASS" and len(ran) < len([c for c in CHECKS if not c.get("by_hand")]):
         names = ran[0] if len(ran) == 1 else ", ".join(ran[:-1]) + " and " + ran[-1] if ran else ""
         quals.insert(0, f"{names} check{'s' if len(ran) > 1 else ''} only" if ran else "no check ran")
     if ctx["slicer_info"]:
@@ -435,7 +445,8 @@ def skill_tables():
     out += ["", f"### Checks in version {__version__}", "",
             "| Check | Runs in this version | What it looks at |", "|---|---|---|"]
     for c in CHECKS:
-        out.append(f"| {c['name']} | {'yes' if c['run'] is not None else 'no, manual for now'} | {c['text']} |")
+        runs = "yes" if c["run"] is not None else "no, by hand" if c.get("by_hand") else "no, manual for now"
+        out.append(f"| {c['name']} | {runs} | {c['text']} |")
     out += ["", END]
     return "\n".join(out)
 
@@ -451,6 +462,13 @@ def update_skill_tables(skill_path):
         text = text.rstrip("\n") + "\n\n## Reference tables\n\n" + block + "\n"
     with open(skill_path, "w") as fh:
         fh.write(text)
+
+
+def _same_file(a, b):
+    try:
+        return os.path.samefile(a, b)
+    except OSError:      # one of them does not exist yet
+        return os.path.abspath(a) == os.path.abspath(b)
 
 
 def main(argv=None):
@@ -487,6 +505,13 @@ def main(argv=None):
     if args.exceptions and len(args.parts) > 1:
         print("--exceptions takes one part; without it each part uses <part>.exceptions.json", file=sys.stderr)
         return 2
+    if args.out and not args.no_report:
+        reads = [args.parts[0], args.exceptions or os.path.splitext(args.parts[0])[0] + ".exceptions.json",
+                 *(args.orca_presets or [])]
+        if any(_same_file(args.out, p) for p in reads):
+            print("--out names a file the command reads; the report would replace it. Choose another path",
+                  file=sys.stderr)
+            return 2
     missing = missing_packages()
     if missing:
         print(install_help(missing), file=sys.stderr)

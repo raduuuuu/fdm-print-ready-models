@@ -4,7 +4,7 @@
   "name": "fdm-print-ready-models",
   "version": "0.3.0"
  },
- "generated": "2026-11-25T13:31:45Z",
+ "generated": "2026-11-27T18:51:12Z",
  "part": {
   "file": "shelter.stl",
   "sha256": "1c6fb1cedc3d3f06d5925eaea9c5dc0e473fa025b43ef8cfb4f98158afaaf74f",
@@ -228,6 +228,18 @@
     }
    ],
    "error": null
+  },
+  {
+   "name": "raised ports",
+   "status": "by_hand",
+   "findings": [],
+   "error": null
+  },
+  {
+   "name": "assembly instructions",
+   "status": "by_hand",
+   "findings": [],
+   "error": null
   }
  ],
  "part_error": null,
@@ -237,7 +249,9 @@
   "version": "2.5.1"
  },
  "verdict": "PASS",
- "qualifiers": [],
+ "qualifiers": [
+  "still to do by hand: raised ports, assembly instructions"
+ ],
  "counts": {
   "fail": 0,
   "warn": 0,

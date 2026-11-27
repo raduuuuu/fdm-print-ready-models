@@ -122,6 +122,48 @@ def test_a_slice_that_cannot_be_trusted_is_an_error(tmp_path, content, message):
         slicer.parse_gcode(path)
 
 
+def test_a_travel_move_is_followed_whichever_command_makes_it(tmp_path):
+    body = PRUSA_BODY.replace("G1 X108 Y128\n", "G0 X108 Y128\n")
+    _, _, segs = slicer.parse_gcode(gcode(tmp_path, body))
+    assert segs[-1] == ("Bridge infill", 10.2, 108.0, 128.0, 148.0, 128.0)
+
+
+def test_a_bridge_sent_as_several_moves_is_measured_as_one(tmp_path):
+    pieces = "".join(f"G1 X{108 + 5 * k} Y128 E0.25\n" for k in range(1, 9))
+    body = PRUSA_BODY.replace("G1 X148 Y128 E2\n", pieces)
+    _, _, segs = slicer.parse_gcode(gcode(tmp_path, body))
+    spans, _ = slicer.measure(bridge(40.0), segs)
+    assert len(spans) == 1 and spans[0][0] == pytest.approx(39.0, abs=1.1)
+
+
+def test_bridging_lines_that_turn_back_are_not_joined(tmp_path):
+    body = PRUSA_BODY + "G1 X148 Y128.5 E0.1\nG1 X108 Y128.5 E2\n"
+    _, _, segs = slicer.parse_gcode(gcode(tmp_path, body))
+    spans, _ = slicer.measure(bridge(40.0), segs)
+    assert [s[0] for s in spans] == [pytest.approx(39.0, abs=1.1)] * 2
+
+
+def test_an_arc_is_followed_round_its_centre_and_a_full_circle_is_kept(tmp_path):
+    half = PRUSA_BODY.replace("G1 X148 Y128 E2\n", "G2 X148 Y128 I20 J0 E2\n")
+    _, _, segs = slicer.parse_gcode(gcode(tmp_path, half))
+    arc = [s for s in segs if s[0] == "Bridge infill"]
+    assert len(arc) > 30 and max(s[5] for s in arc) == pytest.approx(148.0, abs=0.1)    # over the top, y up to 128 + 20
+    assert (arc[-1][4], arc[-1][5]) == (148.0, 128.0)
+    full = PRUSA_BODY.replace("G1 X148 Y128 E2\n", "G3 X108 Y128 I5 J0 E2\n")
+    _, _, segs = slicer.parse_gcode(gcode(tmp_path, full))
+    assert len([s for s in segs if s[0] == "Bridge infill"]) > 20
+
+
+@pytest.mark.parametrize("height", [0.12, 0.16, 0.28])
+def test_a_slice_at_another_layer_height_is_not_trusted(tmp_path, capsys, height):
+    layers = "".join(f";LAYER_CHANGE\n;Z:{height * k:.2f}\n;TYPE:External perimeter\nG1 X104 Y118\n"
+                     "G1 X152 Y118 E1\nG1 X152 Y138 E1\nG1 X104 Y138 E1\nG1 X104 Y118 E1\n" for k in range(1, 8))
+    code, out = run([stl(tmp_path, box(0, 48, 0, 20, 0, 10)), "--no-report", "--slicer-path",
+                     stand_in(tmp_path, body=layers, out_text=CLEAN)], capsys)
+    assert code == 2 and "VERDICT: INCOMPLETE (crashed: slicer)" in out
+    assert "do not match the 0.2 mm layers" in out and "pass --layer" in out
+
+
 # ---- a stand-in slicer, to test the whole path without a real one
 
 def stand_in(tmp_path, mode="ok", body=PRUSA_BODY, out_text=RECORDED):
@@ -171,11 +213,12 @@ def test_a_long_bridge_found_by_the_slicer_fails(tmp_path, capsys):
     assert r["slicer"] == {"name": "PrusaSlicer", "version": "2.9.4"}
 
 
-def test_all_seven_checks_ran_reads_as_a_plain_pass(tmp_path, capsys):
+def test_when_every_automated_check_ran_only_the_hand_checks_are_named(tmp_path, capsys):
     body = PRUSA_BODY.split(";LAYER_CHANGE\n;Z:10.2")[0]
     part = box(0, 48, 0, 20, 0, 10)
     code, out = run([stl(tmp_path, part), "--no-report", "--slicer-path", stand_in(tmp_path, body=body, out_text=CLEAN)], capsys)
-    assert code == 0 and out.strip().endswith("VERDICT: PASS")
+    assert code == 0
+    assert out.strip().endswith("VERDICT: PASS (still to do by hand: raised ports, assembly instructions)")
 
 
 @pytest.mark.parametrize("mode, message", [

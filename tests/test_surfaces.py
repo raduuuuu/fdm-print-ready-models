@@ -86,6 +86,27 @@ def test_underside_angle(angle, run, expected):
     assert kinds(surfaces.run_overhangs(overhang(angle, run))) == expected
 
 
+def arm(width, angle=20.0, run=10.0):
+    """A tower with an arm `width` wide whose underside slopes at `angle` and runs out `run` mm."""
+    rise = run * math.tan(math.radians(angle))
+    a = profile([(0, 0), (run, rise), (run, rise + 3), (0, rise + 3)], width)
+    return box(0, 10, 0, 10, 0, 30) + a.translate([10, 5 + width / 2, 10])
+
+
+@pytest.mark.parametrize("width, run, expected", [
+    (6.0, 10.0, ["overhang_too_flat"]),
+    (1.6, 10.0, ["overhang_narrow"]),      # too narrow for the rule, but it runs 10 mm out
+    (0.8, 5.0, []),                        # as small as the narrow ribs that printed cleanly
+    (1.6, 2.0, []),                        # no further out than a ledge may reach
+])
+def test_a_narrow_underside_is_judged_by_how_far_it_runs_out(width, run, expected):
+    assert kinds(surfaces.run_overhangs(arm(width, run=run))) == expected
+
+
+def test_a_narrow_underside_warns_and_can_be_waived():
+    assert limits.KINDS["overhang_narrow"]["severity"] == "warn" and limits.KINDS["overhang_narrow"]["waivable"]
+
+
 def test_a_flat_bridge_ceiling_is_left_to_the_layer_check():
     part = box(0, 4, 0, 20, 0, 10) + box(14, 18, 0, 20, 0, 10) + box(0, 18, 0, 20, 10, 12)
     assert surfaces.run_overhangs(part) == []

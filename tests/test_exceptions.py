@@ -95,6 +95,17 @@ def test_a_part_level_warning_takes_an_entry_without_a_box(tmp_path, capsys):
     assert code == 0 and "waived  Lowest point of the part is not at z = 0" in out and "with 1 waiver" in out
 
 
+def test_a_note_about_the_whole_part_takes_an_entry_without_a_box():
+    """A slicer alert has no position, although the finding carries x = 0."""
+    import layers
+    def alert():
+        return check._finding_dict(layers.Finding("slicer_alert", "Low bed adhesion", "note", 0.0, 0.0, 0.0, 0.0, 0.0))
+    for box_, severity, used in ((None, "waived", 1), (EVERYWHERE, "warn", 0)):
+        finding, entry = alert(), {"kind": "slicer_alert", "box": box_, "reason": "a brim is used", "used": 0}
+        check.apply_exceptions([finding], [entry])
+        assert (finding["severity"], entry["used"]) == (severity, used)
+
+
 def test_one_box_waives_every_finding_of_that_kind_inside_it(tmp_path, capsys):
     two = ramp() + ramp().translate([50, 0, 0])
     p = stl(tmp_path, two)
